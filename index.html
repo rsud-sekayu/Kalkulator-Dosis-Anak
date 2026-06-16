@@ -83,7 +83,6 @@ async function ambilDataDariGoogleSheets() {
     }
 }
 
-// FUNGSI PARSING CSV SPESIAL: AMAN DARI TANDA KOMA DI DALAM TEKS
 function parseBarisCSV(text) {
     let p = [''], r = ["\""], q = [","], a = text.split('');
     let i = 0, f = false, len = a.length;
@@ -104,7 +103,6 @@ function prosesCSV(text) {
     for (let i = 1; i < baris.length; i++) {
         if (!baris[i].trim()) continue;
         
-        // Gunakan fungsi parsing pintar baru yang kebal tanda koma
         let kolom = parseBarisCSV(baris[i]);
         if (kolom.length < 5) continue;
 
@@ -119,20 +117,28 @@ function prosesCSV(text) {
 
         if (!nama) continue;
 
-        let keyNama = `${nama} ${sediaan} ${kekuatan}`.trim();
+        // Kunci nama diubah agar langsung menampilkan kekuatan apa adanya dari Excel Anda
+        let keyNama = `${nama} ${sediaan} ${kekuatan}`.replace(/\s+/g, ' ').trim();
         
         let tipeObat = "BB"; 
         let jenisHitung = "Per Kali - BB";
         let minDosis = 0, makDosis = 0, f = 1, mgZat = 0, mlSediaan = 1;
         let maksAnakHari = 0, maksDewasaHari = 0, maksDewasaKali = 0;
 
-        let matchKekuatan = kekuatan.match(/(\d+)\s*mg\/(\d+)?\s*(ml)/i);
+        // Ekstraksi numerik kekuatan yang lebih toleran format apa saja
+        let angkaKekuatan = kekuatan.replace(',', '.');
+        let matchKekuatan = angkaKekuatan.match(/(\d+[\.,]?\d*)\s*mg\/(\d+)?\s*(ml)/i);
         if (matchKekuatan) {
             mgZat = parseFloat(matchKekuatan[1]);
             mlSediaan = parseFloat(matchKekuatan[2] || 1);
         } else {
-            let matchMg = kekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
-            if (matchMg) mgZat = parseFloat(matchMg[1].replace(',', '.'));
+            let matchMg = angkaKekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
+            if (matchMg) {
+                mgZat = parseFloat(matchMg[1]);
+            } else {
+                let angkaSaja = angkaKekuatan.match(/(\d+[\.,]?\d*)/);
+                if (angkaSaja) mgZat = parseFloat(angkaSaja[1]);
+            }
             mlSediaan = 1; 
         }
 
@@ -185,7 +191,7 @@ function prosesCSV(text) {
             min: minDosis,
             mak: makDosis,
             f: f,
-            mg: mgZat,
+            mg: mgZat || 1, // fallback pengaman agar tidak pembagian dengan nol
             ml: mlSediaan,
             maksAnakHari: maksAnakHari,
             maksDewasaHari: maksDewasaHari,
@@ -207,7 +213,7 @@ function prosesCSV(text) {
 }
 
 function pantauPilihanObat() {
-    const namaObat = document.getElementById('search-obat') ? document.getElementById('search-obat').value : document.getElementById('obat-search').value;
+    const namaObat = document.getElementById('obat-search').value;
     const boxBB = document.getElementById('box-input-bb');
     const boxUmur = document.getElementById('box-input-umur');
 
@@ -235,7 +241,7 @@ function eksekusiKalkulatorDosis() {
     const areaHasil = document.getElementById('area-hasil-kalkulator');
     const detailHasil = document.getElementById('konten-detail-hasil');
 
-    if (!DB_MASTER[namaObat]) { alert("Nama obat tidak terdaftar! Pilih dari list autocomplete."); return; }
+    if (!DB_MASTER[namaObat]) { alert("Nama obat tidak terdaftar! Pilih dari list."); return; }
     const obat = DB_MASTER[namaObat];
 
     areaHasil.classList.remove('d-none');
@@ -249,7 +255,7 @@ function eksekusiKalkulatorDosis() {
         if (isNaN(umurInput)) { alert("Input umur wajib diisi untuk kategori Dosis Flat!"); return; }
         
         detailHasil.innerHTML = `
-            <p class="mb-2"><strong>Metode Perhitungan:</strong> Dosis Flat Kontrol (Sesuai Data Live Google Sheets)</p>
+            <p class="mb-2"><strong>Metode Perhitungan:</strong> Dosis Flat Kontrol</p>
             <p class="mb-2"><strong>Acuan Aturan Paket Klinis Obat Ini:</strong></p>
             <div class="alert alert-info py-2 small fw-bold">${obat.catatan}</div>
             <p class="text-muted small">💡 <i>Sistem mengonfirmasi pemberian disesuaikan dengan range umur pasien (${umurInput} ${satuanUmur}) berdasarkan parameter data di atas.</i></p>
@@ -273,7 +279,7 @@ function eksekusiKalkulatorDosis() {
 
     if (obat.tipe === "Paracetamol") {
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
-        if (isNaN(umurInput)) { alert("Input Umur wajib diisi untuk double screening batas organ liver!"); return; }
+        if (isNaN(umurInput)) { alert("Input Umur wajib diisi!"); return; }
 
         let limitHarian = (umurTahun < 12) ? obat.maksAnakHari : obat.maksDewasaHari;
         let mgMinKali = bb * obat.min;
@@ -287,11 +293,11 @@ function eksekusiKalkulatorDosis() {
         }
         if (mgMakKali > obat.maksDewasaKali) mgMakKali = obat.maksDewasaKali;
 
-        const satuanSediaan = (obat.ml === 1) ? "Tablet" : "ml";
+        const satuanSediaan = (obat.ml === 1 && !namaObat.toLowerCase().includes("sirup") && !namaObat.toLowerCase().includes("drop")) ? "Tablet" : "ml";
         const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
         const hasilMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
 
-        let infoPotong = terpotongOtomatis ? `<div class="alert alert-danger py-2 mt-2 mb-0 small">⚠️ <b>Dosis Dipotong Aman:</b> Melampaui batas liver anak. Maksimum sekali minum dikunci ke <b>${mgMakKali.toFixed(0)} mg</b>.</div>` : "";
+        let infoPotong = terpotongOtomatis ? `<div class="alert alert-danger py-2 mt-2 mb-0 small">⚠️ <b>Dosis Dipotong Aman:</b> Melampaui batas liver. Maksimum sekali minum dikunci ke <b>${mgMakKali.toFixed(0)} mg</b>.</div>` : "";
 
         detailHasil.innerHTML = `
             <p class="mb-2"><strong>Aturan Frekuensi:</strong> Sehari 3 s/d 4 kali (Tiap 4-6 jam prn)</p>
@@ -307,8 +313,8 @@ function eksekusiKalkulatorDosis() {
     if (obat.tipe === "BB") {
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
         
-        let mgMinHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.min) : ((bb * obat.min) * obat.f);
-        let mgMakHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.mak) : ((bb * obat.mak) * obat.f);
+        let mgMinHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.min) : ((bb * bb * obat.min) * obat.f);
+        let mgMakHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.mak) : ((bb * bb * obat.mak) * obat.f);
 
         if (obat.maksAnakHari > 0 && mgMakHari > obat.maksAnakHari) mgMakHari = obat.maksAnakHari;
 
@@ -317,7 +323,7 @@ function eksekusiKalkulatorDosis() {
 
         const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
         const hasilMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
-        const satuanSediaan = (obat.ml === 1) ? "Tablet/Kapsul" : "ml";
+        const satuanSediaan = (obat.ml === 1 && !namaObat.toLowerCase().includes("sirup") && !namaObat.toLowerCase().includes("drop")) ? "Tablet/Kapsul" : "ml";
 
         detailHasil.innerHTML = `
             <p class="mb-2"><strong>Aturan Frekuensi:</strong> Sehari ${obat.f} kali</p>
