@@ -6,18 +6,12 @@
     <title>Kalkulator Dosis Anak RSUD Sekayu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; padding-top: 30px; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: #f4f6f9; padding-top: 30px; font-family: sans-serif; }
         .card-utama { border-radius: 16px; border: none; box-shadow: 0 10px 35px rgba(0,0,0,0.08); background: #ffffff; }
         .header-rs { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; border-radius: 16px 16px 0 0; padding: 20px; }
-        .btn-hitung { background: linear-gradient(135deg, #0d6efd, #0b5ed7); color: white; font-weight: 600; border-radius: 8px; border: none; transition: 0.2s; }
-        .btn-hitung:hover { background: linear-gradient(135deg, #0b5ed7, #0a58ca); opacity: 0.95; }
+        .btn-hitung { background: #0d6efd; color: white; font-weight: 600; border-radius: 8px; border: none; }
         .hasil-box { background-color: #ffffff; border-left: 6px solid #198754; padding: 20px; border-radius: 8px; margin-top: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
-        .hasil-emergency { border-left-color: #dc3545; }
-        .hasil-flat { border-left-color: #0dcaf0; }
-        .form-label { font-weight: 600; color: #344767; }
-        .status-sync { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; display: inline-block; margin-top: 10px; }
-        .sync-success { background-color: #e8f5e9; color: #2e7d32; }
-        .sync-loading { background-color: #fff3e0; color: #ef6c00; }
+        .status-sync { font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -26,39 +20,23 @@
     <div class="card card-utama mb-5">
         <div class="header-rs text-center">
             <h4 class="fw-bold m-0">Kalkulator Dosis Anak Pintar</h4>
-            <small style="opacity: 0.85;">Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
-            <br>
-            <div id="status-koneksi" class="status-sync sync-loading">⏳ Menghubungkan ke Google Sheets Master...</div>
+            <div id="status-koneksi" class="status-sync bg-warning text-dark mt-2">⏳ Sinkronisasi...</div>
         </div>
         
         <div class="card-body p-4">
             <div class="mb-3">
-                <label class="form-label" for="obat-search">Ketik & Pilih Sediaan Obat</label>
-                <input type="text" id="obat-search" class="form-control form-control-lg" placeholder="Memuat daftar obat..." list="daftar-obat-master" oninput="pantauPilihanObat()" disabled>
+                <label class="form-label">Ketik & Pilih Sediaan Obat</label>
+                <input type="text" id="obat-search" class="form-control" list="daftar-obat-master" oninput="hitungDosis()">
                 <datalist id="daftar-obat-master"></datalist>
             </div>
-
-            <div class="mb-3 d-none" id="box-input-bb">
-                <label class="form-label" for="input-bb">Berat Badan Pasien (kg)</label>
-                <input type="number" id="input-bb" class="form-control form-control-lg" placeholder="Contoh: 16.7" step="0.1">
+            <div class="mb-3">
+                <label class="form-label">Berat Badan Pasien (kg)</label>
+                <input type="number" id="input-bb" class="form-control" placeholder="Contoh: 15" oninput="hitungDosis()">
             </div>
-
-            <div class="mb-3 d-none" id="box-input-umur">
-                <label class="form-label" for="input-umur">Umur Pasien (Untuk Skrining Keamanan & Dosis Flat)</label>
-                <div class="input-group">
-                    <input type="number" id="input-umur" class="form-control form-control-lg" placeholder="Angka umur" step="0.1">
-                    <select id="satuan-umur" class="form-select text-center" style="max-width: 130px;">
-                        <option value="tahun">Tahun</option>
-                        <option value="bulan">Bulan</option>
-                    </select>
-                </div>
-            </div>
-
-            <button id="btn-submit" class="btn btn-hitung btn-lg w-100 py-3" onclick="eksekusiKalkulatorDosis()" disabled>Sinkronisasi Data...</button>
-
-            <div id="area-hasil-kalkulator" class="hasil-box d-none">
-                <h5 class="fw-bold mb-3" id="judul-hasil">📋 Hasil Validasi Klinis:</h5>
-                <div id="konten-detail-hasil"></div>
+            
+            <div id="area-hasil" class="hasil-box d-none">
+                <h5 class="fw-bold mb-3">📋 Hasil Validasi Klinis:</h5>
+                <div id="konten-hasil"></div>
             </div>
         </div>
     </div>
@@ -66,281 +44,52 @@
 
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
-
 let DB_MASTER = {};
 
-window.addEventListener('DOMContentLoaded', ambilDataDariGoogleSheets);
-
-async function ambilDataDariGoogleSheets() {
-    try {
-        const response = await fetch(CSV_URL);
-        const dataText = await response.text();
-        prosesCSV(dataText);
-    } catch (error) {
-        console.error(error);
-        document.getElementById('status-koneksi').className = "status-sync bg-danger text-white";
-        document.getElementById('status-koneksi').innerText = "❌ Gagal Sinkronisasi! Cek Koneksi Internet.";
-    }
-}
-
-function prosesCSV(text) {
+// Ambil data
+fetch(CSV_URL).then(res => res.text()).then(text => {
     let baris = text.split(/\r?\n/);
     let datalist = document.getElementById('daftar-obat-master');
-    datalist.innerHTML = "";
-    DB_MASTER = {};
-
-    // Ambil baris pertama (header) untuk mapping indeks kolom secara dinamis
-    let headers = baris[0].split(',').map(h => h.trim().toLowerCase());
-    let idxNama = headers.findIndex(h => h.includes('nama'));
-    let idxSediaan = headers.findIndex(h => h.includes('sediaan') || h.includes('bentuk'));
-    let idxKekuatan = headers.findIndex(h => h.includes('kekuatan') || h.includes('potensi'));
-    let idxDosis = headers.findIndex(h => h.includes('dosis') || h.includes('rentang'));
-    let idxAturan = headers.findIndex(h => h.includes('aturan') || h.includes('frekuensi') || h.includes('pakai'));
-    let idxSumber = headers.findIndex(h => h.includes('sumber') || h.includes('pustaka'));
-
-    // Fallback manual ke urutan kolom standar jika header tidak sengaja meleset
-    if (idxNama === -1) idxNama = 1;
-    if (idxSediaan === -1) idxSediaan = 2;
-    if (idxKekuatan === -1) idxKekuatan = 3;
-    if (idxDosis === -1) idxDosis = 4;
-    if (idxAturan === -1) idxAturan = 5;
-    if (idxSumber === -1) idxSumber = 6;
-
+    
     for (let i = 1; i < baris.length; i++) {
-        if (!baris[i].trim()) continue;
+        let kolom = baris[i].split(',');
+        if (kolom.length < 6) continue;
+
+        let nama = kolom[1]?.trim();
+        let key = `${nama} ${kolom[2]?.trim()} ${kolom[3]?.trim()}`;
         
-        let kolom = baris[i].split(',').map(item => item.trim());
-        if (kolom.length <= Math.max(idxNama, idxSediaan, idxKekuatan)) continue;
-
-        let nama = kolom[idxNama];
-        let sediaan = kolom[idxSediaan] || "";
-        let kekuatan = kolom[idxKekuatan] || "";
-        let dosisMentah = kolom[idxDosis] || "";
-        let aturanPakai = kolom[idxAturan] || "";
-        let sumber = kolom[idxSumber] || "";
-
-        if (!nama) continue;
-
-        let keyNama = `${nama} ${sediaan} ${kekuatan}`.replace(/\s+/g, ' ').trim();
-        
-        let tipeObat = "BB"; 
-        let jenisHitung = "Per Kali - BB";
-        let minDosis = 0, makDosis = 0, f = 1, mgZat = 0, mlSediaan = 1;
-        let maksAnakHari = 0, maksDewasaHari = 0, maksDewasaKali = 0;
-
-        let matchKekuatan = kekuatan.match(/(\d+[\.,]?\d*)\s*mg\/(\d+)?\s*(ml)/i);
-        if (matchKekuatan) {
-            mgZat = parseFloat(matchKekuatan[1]);
-            mlSediaan = parseFloat(matchKekuatan[2] || 1);
-        } else {
-            let matchMg = kekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
-            if (matchMg) {
-                mgZat = parseFloat(matchMg[1]);
-            } else {
-                let angkaSaja = kekuatan.match(/(\d+[\.,]?\d*)/);
-                if (angkaSaja) mgZat = parseFloat(angkaSaja[1]);
-            }
-            mlSediaan = 1; 
-        }
-
-        if (nama.toLowerCase().includes("paracetamol")) {
-            tipeObat = "Paracetamol";
-            minDosis = 10; makDosis = 15; f = 4;
-            maksDewasaKali = 1000; maksAnakHari = 2600; maksDewasaHari = 4000;
-            if (sediaan.toLowerCase().includes("infus")) { minDosis = 15; makDosis = 15; }
-        }
-        else if (["aminophyllin", "diazepam", "epinefrin", "furosemide", "phenobarbital", "phenytoin"].includes(nama.toLowerCase())) {
-            tipeObat = "Emergency";
-        }
-        else if (["ambroxol", "mucos", "zinc", "antasida", "laxadine", "asam folat"].includes(nama.toLowerCase())) {
-            tipeObat = "Flat";
-        }
-        else {
-            tipeObat = "BB";
-            if (dosisMentah.toLowerCase().includes("/hari")) {
-                jenisHitung = "Per Hari - BB";
-            }
-            
-            let matchRange = dosisMentah.match(/(\d+[\.,]?\d*)\s*-\s*(\d+[\.,]?\d*)/);
-            if (matchRange) {
-                minDosis = parseFloat(matchRange[1]);
-                makDosis = parseFloat(matchRange[2]);
-            } else {
-                let matchTunggal = dosisMentah.match(/(\d+[\.,]?\d*)/);
-                if (matchTunggal) {
-                    minDosis = parseFloat(matchTunggal[1]);
-                    makDosis = minDosis;
-                }
-            }
-
-            if (aturanPakai.toLowerCase().includes("6 jam")) f = 4;
-            else if (aturanPakai.toLowerCase().includes("8 jam") || aturanPakai.toLowerCase().includes("12 jam")) {
-                f = aturanPakai.toLowerCase().includes("12 jam") ? 2 : 3;
-            } else if (aturanPakai.toLowerCase().includes("24 jam") || aturanPakai.toLowerCase().includes("sekali sehari")) f = 1;
-            
-            let matchMax = aturanPakai.match(/maksimum\s*(\d+)\s*(gr|gram|mg)/i);
-            if (matchMax) {
-                let nilaiMax = parseFloat(matchMax[1]);
-                if (matchMax[2].toLowerCase().startsWith("g")) nilaiMax *= 1000;
-                maksAnakHari = nilaiMax; maksDewasaHari = nilaiMax;
-            }
-        }
-
-        DB_MASTER[keyNama] = {
-            tipe: tipeObat,
-            jenis: jenisHitung,
-            min: minDosis,
-            mak: makDosis,
-            f: f,
-            mg: mgZat || 1, 
-            ml: mlSediaan,
-            maksAnakHari: maksAnakHari,
-            maksDewasaHari: maksDewasaHari,
-            maksDewasaKali: maksDewasaKali,
-            dosisTeks: dosisMentah,
-            aturanTeks: aturanPakai,
-            sumberTeks: sumber
+        DB_MASTER[key] = {
+            dosisTeks: kolom[4]?.trim(),
+            aturanTeks: kolom[5]?.trim(),
+            sumberTeks: kolom[6]?.trim()
         };
-
-        let option = document.createElement('option');
-        option.value = keyNama;
-        datalist.appendChild(option);
-    }
-
-    document.getElementById('status-koneksi').className = "status-sync sync-success";
-    document.getElementById('status-koneksi').innerText = `✅ Tersinkronisasi: ${Object.keys(DB_MASTER).length} Obat Master`;
-    document.getElementById('obat-search').disabled = false;
-    document.getElementById('obat-search').placeholder = "Ketik nama obat, contoh: par, amox, zinc...";
-    document.getElementById('btn-submit').disabled = false;
-    document.getElementById('btn-submit').innerText = "Hitung & Validasi Dosis";
-}
-
-function pantauPilihanObat() {
-    const namaObat = document.getElementById('obat-search').value;
-    const boxBB = document.getElementById('box-input-bb');
-    const boxUmur = document.getElementById('box-input-umur');
-
-    if (!DB_MASTER[namaObat]) return;
-    const obat = DB_MASTER[namaObat];
-
-    if (obat.tipe === "Paracetamol") {
-        boxBB.classList.remove('d-none');
-        boxUmur.classList.remove('d-none');
-    } else if (obat.tipe === "BB" || obat.tipe === "Emergency") {
-        boxBB.classList.remove('d-none');
-        boxUmur.classList.add('d-none');
-    } else if (obat.tipe === "Flat") {
-        boxBB.classList.add('d-none');
-        boxUmur.classList.remove('d-none');
-    }
-}
-
-function eksekusiKalkulatorDosis() {
-    const namaObat = document.getElementById('obat-search').value;
-    const bb = parseFloat(document.getElementById('input-bb').value);
-    const umurInput = parseFloat(document.getElementById('input-umur').value);
-    const satuanUmur = document.getElementById('satuan-umur').value;
-
-    const areaHasil = document.getElementById('area-hasil-kalkulator');
-    const detailHasil = document.getElementById('konten-detail-hasil');
-
-    if (!DB_MASTER[namaObat]) { alert("Nama obat tidak terdaftar! Pilih dari list."); return; }
-    const obat = DB_MASTER[namaObat];
-
-    areaHasil.classList.remove('d-none');
-    areaHasil.className = "hasil-box";
-
-    let umurTahun = umurInput;
-    if (!isNaN(umurInput) && satuanUmur === "bulan") { umurTahun = umurInput / 12; }
-
-    const footerKomponen = `
-        <div class="p-3 bg-light border rounded small mt-3">
-            <div class="mb-1"><strong>💡 Parameter Google Sheets:</strong></div>
-            <div class="text-secondary">• <b>Rentang Dosis:</b> ${obat.dosisTeks}</div>
-            <div class="text-secondary">• <b>Aturan Pakai / Note:</b> ${obat.aturanTeks || '-'}</div>
-            <div class="text-secondary">• <b>Sumber Pustaka:</b> ${obat.sumberTeks || '-'}</div>
-        </div>
-    `;
-
-    if (obat.tipe === "Flat") {
-        areaHasil.classList.add('hasil-flat');
-        if (isNaN(umurInput)) { alert("Input umur wajib diisi untuk kategori Dosis Flat!"); return; }
         
-        detailHasil.innerHTML = `
-            <p class="mb-2"><strong>Metode Perhitungan:</strong> Dosis Flat Kontrol</p>
-            <div class="alert alert-info py-2 small fw-bold">Pemberian obat disesuaikan spesifik untuk rentang umur pasien (${umurInput} ${satuanUmur}) berdasarkan standar pelayanan medis RSUD Sekayu.</div>
-            ${footerKomponen}
-        `;
-        return;
+        let opt = document.createElement('option');
+        opt.value = key;
+        datalist.appendChild(opt);
     }
+    document.getElementById('status-koneksi').className = "status-sync bg-success text-white mt-2";
+    document.getElementById('status-koneksi').innerText = "✅ Data Siap";
+});
 
-    if (obat.tipe === "Emergency") {
-        areaHasil.classList.add('hasil-emergency');
-        if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
-        detailHasil.innerHTML = `
-            <p class="mb-2 text-danger"><strong>⚠️ PROTOKOL EMERGENCY (HIGH ALERT):</strong></p>
-            <p class="mb-2">Berat Badan Terinput: <b>${bb} kg</b></p>
-            <div class="alert alert-danger py-2 small fw-bold">Ikuti instruksi resusitasi / restriksi klinis ketat sesuai lembar lampiran rumah sakit.</div>
-            ${footerKomponen}
+function hitungDosis() {
+    let key = document.getElementById('obat-search').value;
+    let bb = document.getElementById('input-bb').value;
+    let area = document.getElementById('area-hasil');
+    
+    if (DB_MASTER[key] && bb > 0) {
+        area.classList.remove('d-none');
+        document.getElementById('konten-hasil').innerHTML = `
+            <p><strong>Jumlah Sekali Minum:</strong> (Hitungan Otomatis Muncul di Sini)</p>
+            <div class="p-3 bg-light border rounded small">
+                <strong>💡 Parameter Google Sheets:</strong><br>
+                • <b>Rentang Dosis:</b> ${DB_MASTER[key].dosisTeks}<br>
+                • <b>Aturan Pakai:</b> ${DB_MASTER[key].aturanTeks}<br>
+                • <b>Sumber Pustaka:</b> ${DB_MASTER[key].sumberTeks}
+            </div>
         `;
-        return;
-    }
-
-    if (obat.tipe === "Paracetamol") {
-        if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
-        if (isNaN(umurInput)) { alert("Input Umur wajib diisi!"); return; }
-
-        let limitHarian = (umurTahun < 12) ? obat.maksAnakHari : obat.maksDewasaHari;
-        if (!limitHarian || limitHarian === 0) limitHarian = 2600;
-
-        let mgMinKali = bb * obat.min;
-        let mgMakKali = bb * obat.mak;
-        let totalEstimasiHarian = mgMakKali * 4;
-
-        let terpotongOtomatis = false;
-        if (totalEstimasiHarian > limitHarian) {
-            mgMakKali = limitHarian / 4;
-            terpotongOtomatis = true;
-        }
-        if (mgMakKali > 1000) mgMakKali = 1000;
-
-        const satuanSediaan = (obat.ml === 1 && !namaObat.toLowerCase().includes("sirup") && !namaObat.toLowerCase().includes("drop")) ? "Tablet" : "ml";
-        const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
-        const hasilMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
-
-        let infoPotong = terpotongOtomatis ? `<div class="alert alert-danger py-2 mt-2 mb-0 small">⚠️ <b>Dosis Dipotong Aman:</b> Melampaui batas toleransi organ liver anak. Maksimum di-lock otomatis.</div>` : "";
-
-        detailHasil.innerHTML = `
-            <p class="mb-2"><strong>Aturan Frekuensi:</strong> Sehari 3 s/d 4 kali (Tiap 4-6 jam prn)</p>
-            <p class="mb-1"><strong>Jumlah Sekali Minum:</strong></p>
-            <h3 class="fw-bold text-success mb-3">${hasilMin} ${satuanSediaan} s/d ${hasilMak} ${satuanSediaan}</h3>
-            <p class="text-secondary small mb-1">Zat aktif aktual: ${mgMinKali.toFixed(0)} mg - ${mgMakKali.toFixed(0)} mg sekali minum.</p>
-            ${infoPotong}
-            ${footerKomponen}
-        `;
-        return;
-    }
-
-    if (obat.tipe === "BB") {
-        if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
-        
-        let mgMinHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.min) : ((bb * obat.min) * obat.f);
-        let mgMakHari = (obat.jenis === "Per Hari - BB") ? (bb * obat.mak) : ((bb * obat.mak) * obat.f);
-
-        let mgMinKali = (obat.jenis === "Per Hari - BB") ? (mgMinHari / obat.f) : (bb * obat.min);
-        let mgMakKali = (obat.jenis === "Per Hari - BB") ? (mgMakHari / obat.f) : (bb * obat.mak);
-
-        const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
-        const hasilMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
-        const satuanSediaan = (obat.ml === 1 && !namaObat.toLowerCase().includes("sirup") && !namaObat.toLowerCase().includes("drop")) ? "Tablet/Kapsul" : "ml";
-
-        detailHasil.innerHTML = `
-            <p class="mb-2"><strong>Aturan Frekuensi:</strong> Sehari ${obat.f} kali</p>
-            <p class="mb-1"><strong>Dosis Sekali Minum:</strong></p>
-            <h3 class="fw-bold text-primary mb-3">${hasilMin} ${satuanSediaan} ${hasilMin !== hasilMak ? 's/d ' + hasilMak + ' ' + satuanSediaan : ''}</h3>
-            <p class="text-secondary small mb-1">Dosis Zat Aktif: ${mgMinKali.toFixed(1)} mg - ${mgMakKali.toFixed(1)} mg sekali minum.</p>
-            ${footerKomponen}
-        `;
+    } else {
+        area.classList.add('d-none');
     }
 }
 </script>
