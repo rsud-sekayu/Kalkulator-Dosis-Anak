@@ -323,7 +323,7 @@ function eksekusiKalkulatorDosis() {
         umurTahun = umurInput / 12;
     }
 
-    // FORMAT 3: ALUR PARACETAMOL (DOUBLE SCREENING LIVER)
+    // FORMAT 3: ALUR PARACETAMOL (DOUBLE SCREENING LIVER - PERBAIKAN SATUAN SEDIAAN)
     if (obat.tipe === "Paracetamol") {
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
         if (isNaN(umurInput) || umurInput < 0) { alert("Untuk Paracetamol, input Umur wajib diisi demi skrining toksisitas hati!"); return; }
@@ -341,8 +341,12 @@ function eksekusiKalkulatorDosis() {
         }
         if (mgMakKali > obat.maksDewasaKali) mgMakKali = obat.maksDewasaKali;
 
-        const mlMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
-        const mlMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
+        // --- Perbaikan Deteksi Satuan Sediaan Aktual ---
+        const satuanSediaan = (obat.ml === 1) ? "Tablet" : "ml";
+        
+        // Hitung hasil fisik obat (jika tablet, akan menghitung berapa bagian tablet)
+        const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
+        const hasilMak = ((mgMakKali / obat.mg) * obat.ml).toFixed(1);
 
         let infoPotong = "";
         if (terpotongOtomatis) {
@@ -353,8 +357,8 @@ function eksekusiKalkulatorDosis() {
 
         detailHasil.innerHTML = `
             <p class="mb-2"><strong>Aturan Frekuensi:</strong> Sehari 3 s/d 4 kali (Tiap 4-6 jam jika demam)</p>
-            <p class="mb-1"><strong>Volume Sekali Minum:</strong></p>
-            <h3 class="fw-bold text-success mb-3">${mlMin} ml <span class="text-muted fs-5">s/d</span> ${mlMak} ml</h3>
+            <p class="mb-1"><strong>Jumlah Sekali Minum:</strong></p>
+            <h3 class="fw-bold text-success mb-3">${hasilMin} ${satuanSediaan} <span class="text-muted fs-5">s/d</span> ${hasilMak} ${satuanSediaan}</h3>
             <p class="text-secondary small mb-1">Zat aktif aktual: ${mgMinKali.toFixed(0)} mg - ${mgMakKali.toFixed(0)} mg sekali minum.</p>
             <div class="p-2 bg-light border rounded small mt-2">
                 <strong>💡 Catatan Apoteker:</strong><br><span class="text-muted">${obat.catatan}</span>
