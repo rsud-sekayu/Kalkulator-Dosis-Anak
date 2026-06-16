@@ -83,24 +83,14 @@ async function ambilDataDariGoogleSheets() {
     }
 }
 
-function parseBarisCSV(text) {
-    let p = [''], r = ["\""], q = [","], a = text.split('');
-    let i = 0, f = false, len = a.length;
-    for (let j = 0; j < len; j++) {
-        if (a[j] === r[0]) { f = !f; continue; }
-        if (a[j] === q[0] && !f) { p[++i] = ''; continue; }
-        p[i] += a[j];
-    }
-    return p;
-}
-
 function prosesCSV(text) {
     let baris = text.split(/\r?\n/);
-    if (baris.length < 2) return;
+    let datalist = document.getElementById('daftar-obat-master');
+    datalist.innerHTML = "";
+    DB_MASTER = {};
 
-    // AMBIL HEADER UNTUK MAPPING INDEKS SECARA OTOMATIS DAN DINAMIS
-    let headers = parseBarisCSV(baris[0]).map(h => h.trim().toLowerCase());
-    
+    // Ambil baris pertama (header) untuk mapping indeks kolom secara dinamis
+    let headers = baris[0].split(',').map(h => h.trim().toLowerCase());
     let idxNama = headers.findIndex(h => h.includes('nama'));
     let idxSediaan = headers.findIndex(h => h.includes('sediaan') || h.includes('bentuk'));
     let idxKekuatan = headers.findIndex(h => h.includes('kekuatan') || h.includes('potensi'));
@@ -108,7 +98,7 @@ function prosesCSV(text) {
     let idxAturan = headers.findIndex(h => h.includes('aturan') || h.includes('frekuensi') || h.includes('pakai'));
     let idxSumber = headers.findIndex(h => h.includes('sumber') || h.includes('pustaka'));
 
-    // Fallback manual jika index otomatis tidak sengaja meleset karena typo judul
+    // Fallback manual ke urutan kolom standar jika header tidak sengaja meleset
     if (idxNama === -1) idxNama = 1;
     if (idxSediaan === -1) idxSediaan = 2;
     if (idxKekuatan === -1) idxKekuatan = 3;
@@ -116,14 +106,10 @@ function prosesCSV(text) {
     if (idxAturan === -1) idxAturan = 5;
     if (idxSumber === -1) idxSumber = 6;
 
-    let datalist = document.getElementById('daftar-obat-master');
-    datalist.innerHTML = "";
-    DB_MASTER = {};
-
     for (let i = 1; i < baris.length; i++) {
         if (!baris[i].trim()) continue;
         
-        let kolom = parseBarisCSV(baris[i]).map(item => item.trim());
+        let kolom = baris[i].split(',').map(item => item.trim());
         if (kolom.length <= Math.max(idxNama, idxSediaan, idxKekuatan)) continue;
 
         let nama = kolom[idxNama];
@@ -142,17 +128,16 @@ function prosesCSV(text) {
         let minDosis = 0, makDosis = 0, f = 1, mgZat = 0, mlSediaan = 1;
         let maksAnakHari = 0, maksDewasaHari = 0, maksDewasaKali = 0;
 
-        let angkaKekuatan = kekuatan.replace(',', '.');
-        let matchKekuatan = angkaKekuatan.match(/(\d+[\.,]?\d*)\s*mg\/(\d+)?\s*(ml)/i);
+        let matchKekuatan = kekuatan.match(/(\d+[\.,]?\d*)\s*mg\/(\d+)?\s*(ml)/i);
         if (matchKekuatan) {
             mgZat = parseFloat(matchKekuatan[1]);
             mlSediaan = parseFloat(matchKekuatan[2] || 1);
         } else {
-            let matchMg = angkaKekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
+            let matchMg = kekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
             if (matchMg) {
                 mgZat = parseFloat(matchMg[1]);
             } else {
-                let angkaSaja = angkaKekuatan.match(/(\d+[\.,]?\d*)/);
+                let angkaSaja = kekuatan.match(/(\d+[\.,]?\d*)/);
                 if (angkaSaja) mgZat = parseFloat(angkaSaja[1]);
             }
             mlSediaan = 1; 
@@ -176,12 +161,12 @@ function prosesCSV(text) {
                 jenisHitung = "Per Hari - BB";
             }
             
-            let matchRange = dosisMentah.replace(',', '.').match(/(\d+[\.,]?\d*)\s*-\s*(\d+[\.,]?\d*)/);
+            let matchRange = dosisMentah.match(/(\d+[\.,]?\d*)\s*-\s*(\d+[\.,]?\d*)/);
             if (matchRange) {
                 minDosis = parseFloat(matchRange[1]);
                 makDosis = parseFloat(matchRange[2]);
             } else {
-                let matchTunggal = dosisMentah.replace(',', '.').match(/(\d+[\.,]?\d*)/);
+                let matchTunggal = dosisMentah.match(/(\d+[\.,]?\d*)/);
                 if (matchTunggal) {
                     minDosis = parseFloat(matchTunggal[1]);
                     makDosis = minDosis;
@@ -268,12 +253,11 @@ function eksekusiKalkulatorDosis() {
     let umurTahun = umurInput;
     if (!isNaN(umurInput) && satuanUmur === "bulan") { umurTahun = umurInput / 12; }
 
-    // BLOK TAMPILAN FOOTER REFERENSI YANG RAPI
     const footerKomponen = `
         <div class="p-3 bg-light border rounded small mt-3">
             <div class="mb-1"><strong>💡 Parameter Google Sheets:</strong></div>
             <div class="text-secondary">• <b>Rentang Dosis:</b> ${obat.dosisTeks}</div>
-            <div class="text-secondary">• <b>Aturan Pakai:</b> ${obat.aturanTeks || '-'}</div>
+            <div class="text-secondary">• <b>Aturan Pakai / Note:</b> ${obat.aturanTeks || '-'}</div>
             <div class="text-secondary">• <b>Sumber Pustaka:</b> ${obat.sumberTeks || '-'}</div>
         </div>
     `;
@@ -307,7 +291,7 @@ function eksekusiKalkulatorDosis() {
         if (isNaN(umurInput)) { alert("Input Umur wajib diisi!"); return; }
 
         let limitHarian = (umurTahun < 12) ? obat.maksAnakHari : obat.maksDewasaHari;
-        if (!limitHarian || limitHarian === 0) limitHarian = 2600; // default pengaman
+        if (!limitHarian || limitHarian === 0) limitHarian = 2600;
 
         let mgMinKali = bb * obat.min;
         let mgMakKali = bb * obat.mak;
@@ -318,7 +302,7 @@ function eksekusiKalkulatorDosis() {
             mgMakKali = limitHarian / 4;
             terpotongOtomatis = true;
         }
-        if (mgMakKali > 1000) mgMakKali = 1000; // max dewasa kali minum
+        if (mgMakKali > 1000) mgMakKali = 1000;
 
         const satuanSediaan = (obat.ml === 1 && !namaObat.toLowerCase().includes("sirup") && !namaObat.toLowerCase().includes("drop")) ? "Tablet" : "ml";
         const hasilMin = ((mgMinKali / obat.mg) * obat.ml).toFixed(1);
