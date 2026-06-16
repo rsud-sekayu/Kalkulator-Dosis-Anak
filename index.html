@@ -35,13 +35,12 @@
             <div class="mb-3">
                 <label class="form-label" for="obat-search">Ketik & Pilih Sediaan Obat</label>
                 <input type="text" id="obat-search" class="form-control form-control-lg" placeholder="Memuat daftar obat..." list="daftar-obat-master" oninput="pantauPilihanObat()" disabled>
-                
                 <datalist id="daftar-obat-master"></datalist>
             </div>
 
             <div class="mb-3 d-none" id="box-input-bb">
                 <label class="form-label" for="input-bb">Berat Badan Pasien (kg)</label>
-                <input type="number" id="input-bb" class="form-control form-control-lg" placeholder="Contoh: 12.5" step="0.1">
+                <input type="number" id="input-bb" class="form-control form-control-lg" placeholder="Contoh: 16.7" step="0.1">
             </div>
 
             <div class="mb-3 d-none" id="box-input-umur">
@@ -66,12 +65,10 @@
 </div>
 
 <script>
-// LINK INTERNET LIVE SINKRONISASI GOOGLE SHEETS ANDA
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
 
 let DB_MASTER = {};
 
-// JALANKAN PROSES PENGAMBILAN DATA SAAT WEB DIBUKA
 window.addEventListener('DOMContentLoaded', ambilDataDariGoogleSheets);
 
 async function ambilDataDariGoogleSheets() {
@@ -86,25 +83,33 @@ async function ambilDataDariGoogleSheets() {
     }
 }
 
+// FUNGSI PARSING CSV SPESIAL: AMAN DARI TANDA KOMA DI DALAM TEKS
+function parseBarisCSV(text) {
+    let p = [''], r = ["\""], q = [","], a = text.split('');
+    let i = 0, f = false, len = a.length;
+    for (let j = 0; j < len; j++) {
+        if (a[j] === r[0]) { f = !f; continue; }
+        if (a[j] === q[0] && !f) { p[++i] = ''; continue; }
+        p[i] += a[j];
+    }
+    return p;
+}
+
 function prosesCSV(text) {
-    // Fungsi memisahkan baris CSV dengan aman dari karakter koma dalam tanda kutip
     let baris = text.split(/\r?\n/);
     let datalist = document.getElementById('daftar-obat-master');
     datalist.innerHTML = "";
     DB_MASTER = {};
 
-    // Mulai dari indeks 1 untuk melewati Header baris pertama Excel
     for (let i = 1; i < baris.length; i++) {
-        if (!baris[i]) continue;
+        if (!baris[i].trim()) continue;
         
-        // Memisahkan kolom menggunakan regex CSV standar
-        let kolom = baris[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || baris[i].split(',');
+        // Gunakan fungsi parsing pintar baru yang kebal tanda koma
+        let kolom = parseBarisCSV(baris[i]);
         if (kolom.length < 5) continue;
 
-        // Bersihkan tanda kutip pembungkus data teks
-        kolom = kolom.map(item => item.replace(/^"|"$/g, '').trim());
+        kolom = kolom.map(item => item.trim());
 
-        let no = kolom[0];
         let nama = kolom[1];
         let sediaan = kolom[2];
         let kekuatan = kolom[3];
@@ -116,13 +121,11 @@ function prosesCSV(text) {
 
         let keyNama = `${nama} ${sediaan} ${kekuatan}`.trim();
         
-        // LOGIKA PENENTUAN KATEGORI OBAT SECARA OTOMATIS BERDASARKAN ATURAN EXCEL ANDA
         let tipeObat = "BB"; 
         let jenisHitung = "Per Kali - BB";
         let minDosis = 0, makDosis = 0, f = 1, mgZat = 0, mlSediaan = 1;
         let maksAnakHari = 0, maksDewasaHari = 0, maksDewasaKali = 0;
 
-        // Ekstrak Kekuatan Zat Aktif & Sediaan Cair
         let matchKekuatan = kekuatan.match(/(\d+)\s*mg\/(\d+)?\s*(ml)/i);
         if (matchKekuatan) {
             mgZat = parseFloat(matchKekuatan[1]);
@@ -130,60 +133,52 @@ function prosesCSV(text) {
         } else {
             let matchMg = kekuatan.match(/(\d+[\.,]?\d*)\s*mg/i);
             if (matchMg) mgZat = parseFloat(matchMg[1].replace(',', '.'));
-            mlSediaan = 1; // Penanda sediaan padat (Tablet/Kapsul)
+            mlSediaan = 1; 
         }
 
-        // 1. Cek Apakah Masuk Kelompok Paracetamol
         if (nama.toLowerCase().includes("paracetamol")) {
             tipeObat = "Paracetamol";
             minDosis = 10; makDosis = 15; f = 4;
             maksDewasaKali = 1000; maksAnakHari = 2600; maksDewasaHari = 4000;
             if (sediaan.toLowerCase().includes("infus")) { minDosis = 15; makDosis = 15; }
         }
-        // 2. Cek Apakah Masuk Kelompok Emergency / High Alert (Aturan Manual)
         else if (["aminophyllin", "diazepam", "epinefrin", "furosemide", "phenobarbital", "phenytoin"].includes(nama.toLowerCase())) {
             tipeObat = "Emergency";
         }
-        // 3. Cek Apakah Masuk Kelompok Dosis Flat (Ambroxol, Mucos, Zinc, Antasida, Laxadine, Asam Folat)
         else if (["ambroxol", "mucos", "zinc", "antasida", "laxadine", "asam folat"].includes(nama.toLowerCase())) {
             tipeObat = "Flat";
         }
-        // 4. Kelompok Dosis Berbasis Berat Badan Biasa (Hitung range dosis otomatis dari teks)
         else {
             tipeObat = "BB";
             if (dosisMentah.toLowerCase().includes("/hari")) {
                 jenisHitung = "Per Hari - BB";
             }
             
-            // Ekstrak angka range dosis (Contoh: "20-100 mg")
-            let matchRange = dosisMentah.match(/(\d+)-(\d+)/);
+            let matchRange = dosisMentah.replace(',', '.').match(/(\d+[\.,]?\d*)\s*-\s*(\d+[\.,]?\d*)/);
             if (matchRange) {
                 minDosis = parseFloat(matchRange[1]);
                 makDosis = parseFloat(matchRange[2]);
             } else {
-                let matchTunggal = dosisMentah.match(/(\d+[\.,]?\d*)/);
+                let matchTunggal = dosisMentah.replace(',', '.').match(/(\d+[\.,]?\d*)/);
                 if (matchTunggal) {
-                    minDosis = parseFloat(matchTunggal[1].replace(',', '.'));
+                    minDosis = parseFloat(matchTunggal[1]);
                     makDosis = minDosis;
                 }
             }
 
-            // Ekstrak frekuensi pemberian dari aturan pakai (Contoh: "Tiap 8 jam" -> 3x, "Tiap 6 jam" -> 4x)
             if (aturanPakai.toLowerCase().includes("6 jam")) f = 4;
             else if (aturanPakai.toLowerCase().includes("8 jam") || aturanPakai.toLowerCase().includes("12 jam")) {
                 f = aturanPakai.toLowerCase().includes("12 jam") ? 2 : 3;
             } else if (aturanPakai.toLowerCase().includes("24 jam") || aturanPakai.toLowerCase().includes("sekali sehari")) f = 1;
             
-            // Ekstrak batasan maksimum harian jika tertera di excel
             let matchMax = aturanPakai.match(/maksimum\s*(\d+)\s*(gr|gram|mg)/i);
             if (matchMax) {
                 let nilaiMax = parseFloat(matchMax[1]);
-                if (matchMax[2].toLowerCase().startsWith("g")) nilaiMax *= 1000; // gr ke mg
+                if (matchMax[2].toLowerCase().startsWith("g")) nilaiMax *= 1000;
                 maksAnakHari = nilaiMax; maksDewasaHari = nilaiMax;
             }
         }
 
-        // Masukkan data ter-ekstrak ke objek master database
         DB_MASTER[keyNama] = {
             tipe: tipeObat,
             jenis: jenisHitung,
@@ -195,17 +190,14 @@ function prosesCSV(text) {
             maksAnakHari: maksAnakHari,
             maksDewasaHari: maksDewasaHari,
             maksDewasaKali: maksDewasaKali,
-            catatan: `${dosisMentah}. Aturan: ${aturanPakai}. Sumber: ${sumber}`,
-            rawKolom: kolom
+            catatan: `${dosisMentah}. Aturan: ${aturanPakai}. Sumber: ${sumber}`
         };
 
-        // Buat komponen opsi pencarian di layar web
         let option = document.createElement('option');
         option.value = keyNama;
         datalist.appendChild(option);
     }
 
-    // Aktifkan Form setelah data berhasil disinkronkan secara live
     document.getElementById('status-koneksi').className = "status-sync sync-success";
     document.getElementById('status-koneksi').innerText = `✅ Tersinkronisasi: ${Object.keys(DB_MASTER).length} Obat Master`;
     document.getElementById('obat-search').disabled = false;
@@ -215,7 +207,7 @@ function prosesCSV(text) {
 }
 
 function pantauPilihanObat() {
-    const namaObat = document.getElementById('obat-search').value;
+    const namaObat = document.getElementById('search-obat') ? document.getElementById('search-obat').value : document.getElementById('obat-search').value;
     const boxBB = document.getElementById('box-input-bb');
     const boxUmur = document.getElementById('box-input-umur');
 
@@ -230,7 +222,7 @@ function pantauPilihanObat() {
         boxUmur.classList.add('d-none');
     } else if (obat.tipe === "Flat") {
         boxBB.classList.add('d-none');
-        boxUmur.classList.remove('d-none'); // Dosis flat membutuhkan umur untuk validasi threshold kategori
+        boxUmur.classList.remove('d-none');
     }
 }
 
@@ -252,7 +244,6 @@ function eksekusiKalkulatorDosis() {
     let umurTahun = umurInput;
     if (!isNaN(umurInput) && satuanUmur === "bulan") { umurTahun = umurInput / 12; }
 
-    // ALUR 1: LOGIKA DOSIS FLAT (MEMBACA ATURAN UMUR DARI BARIS GOOGLE SHEETS)
     if (obat.tipe === "Flat") {
         areaHasil.classList.add('hasil-flat');
         if (isNaN(umurInput)) { alert("Input umur wajib diisi untuk kategori Dosis Flat!"); return; }
@@ -266,7 +257,6 @@ function eksekusiKalkulatorDosis() {
         return;
     }
 
-    // ALUR 2: HIGH ALERT EMERGENCY
     if (obat.tipe === "Emergency") {
         areaHasil.classList.add('hasil-emergency');
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
@@ -281,7 +271,6 @@ function eksekusiKalkulatorDosis() {
         return;
     }
 
-    // ALUR 3: PARACETAMOL LIVER SCREENING
     if (obat.tipe === "Paracetamol") {
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
         if (isNaN(umurInput)) { alert("Input Umur wajib diisi untuk double screening batas organ liver!"); return; }
@@ -315,7 +304,6 @@ function eksekusiKalkulatorDosis() {
         return;
     }
 
-    // ALUR 4: DOSIS RUMUS BERBASIS BB STANDAR
     if (obat.tipe === "BB") {
         if (!bb || bb <= 0) { alert("Input Berat Badan wajib diisi!"); return; }
         
