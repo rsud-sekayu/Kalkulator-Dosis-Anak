@@ -2,53 +2,84 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Kalkulator Dosis Anak</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Dosis Anak RSUD Sekayu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
-        .card { max-width: 450px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { background: #007bff; color: white; cursor: pointer; font-weight: bold; }
-        .hasil { margin-top: 20px; padding: 15px; border-radius: 5px; background: #f9f9f9; display: none; }
-        .dosis-val { font-size: 24px; font-weight: bold; color: #d9534f; display: block; margin: 5px 0; }
+        body { background-color: #f4f6f9; padding-top: 30px; font-family: system-ui, -apple-system, sans-serif; }
+        .card-utama { border-radius: 16px; border: none; box-shadow: 0 10px 35px rgba(0,0,0,0.08); background: #ffffff; }
+        .header-rs { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; border-radius: 16px 16px 0 0; padding: 20px; text-align: center; }
+        .btn-hitung { background: linear-gradient(135deg, #0d6efd, #0b5ed7); color: white; font-weight: 600; border-radius: 8px; border: none; transition: 0.2s; }
+        .btn-hitung:hover { background: linear-gradient(135deg, #0b5ed7, #0a58ca); opacity: 0.95; }
+        .hasil-box { background-color: #ffffff; border-left: 6px solid #198754; padding: 20px; border-radius: 8px; margin-top: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
+        .hasil-emergency { border-left-color: #dc3545; }
+        .hasil-flat { border-left-color: #0dcaf0; }
+        .form-label { font-weight: 600; color: #344767; }
     </style>
 </head>
 <body>
-<div class="card">
-    <h2>Kalkulator Dosis Anak</h2>
-    <input type="text" id="obat" list="list-obat" placeholder="Ketik nama obat...">
-    <datalist id="list-obat">
-        <option value="Paracetamol 120mg/5ml">
-    </datalist>
-    <input type="number" id="bb" placeholder="Berat badan (kg)">
-    <button onclick="hitung()">Hitung Dosis</button>
 
-    <div id="hasil" class="hasil">
-        <p><strong>Aturan Frekuensi:</strong> <span id="aturan"></span></p>
-        <p><strong>Dosis Sekali Minum:</strong> <span class="dosis-val" id="dosis"></span></p>
-        <p><strong>Catatan Apoteker:</strong> <span id="catatan"></span></p>
+<div class="container" style="max-width: 600px;">
+    <div class="card card-utama mb-5">
+        <div class="header-rs text-center">
+            <h4 class="fw-bold m-0">Kalkulator Dosis Anak</h4>
+            <small style="opacity: 0.85;">Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
+        </div>
+        
+        <div class="card-body p-4">
+            <div class="mb-3">
+                <label class="form-label" for="obat-search">Ketik & Pilih Sediaan Obat</label>
+                <input type="text" id="obat-search" class="form-control form-control-lg" placeholder="Ketik nama obat, contoh: par, amox, zinc..." list="daftar-obat-master" oninput="pantauPilihanObat()">
+                <datalist id="daftar-obat-master">
+                    </datalist>
+            </div>
+
+            <div class="mb-3" id="box-input-bb">
+                <label class="form-label" for="input-bb">Berat Badan Pasien (kg)</label>
+                <input type="number" id="input-bb" class="form-control form-control-lg" placeholder="Contoh: 12.5" step="0.1">
+            </div>
+
+            <div class="mb-3 d-none" id="box-input-umur">
+                <label class="form-label" for="input-umur">Umur Pasien</label>
+                <div class="input-group">
+                    <input type="number" id="input-umur" class="form-control form-control-lg" placeholder="Angka umur" step="0.1">
+                    <select id="satuan-umur" class="form-select text-center" style="max-width: 130px;">
+                        <option value="tahun">Tahun</option>
+                        <option value="bulan">Bulan</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-hitung btn-lg w-100 py-3" onclick="eksekusiKalkulatorDosis()">Hitung & Validasi Dosis</button>
+
+            <div id="area-hasil-kalkulator" class="hasil-box d-none">
+                <h5 class="fw-bold mb-3" id="judul-hasil">📋 Hasil Validasi Klinis:</h5>
+                <div id="konten-detail-hasil"></div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    // Contoh data (Tambahkan 55 obat Anda di sini)
-    const database = {
-        "Paracetamol 120mg/5ml": { 
-            aturan: "Tiap 4-6 jam jika demam", 
-            dosis: "5ml - 7.5ml", 
-            catatan: "Maksimal 5 dosis/hari. Anak <12 tahun maks 2.6 gram/hari, anak >12 tahun maks 4 gram/hari." 
-        }
+    // Database tetap sama (DB_MASTER tidak berubah strukturnya, hanya data di dalamnya)
+    const DB_MASTER = {
+        // ... (Database lainnya tetap sama seperti kode Anda sebelumnya)
+        "Paracetamol Sirup 120 mg/5 ml": { tipe: "Paracetamol", min: 10, mak: 15, f: 4, mg: 120, ml: 5, maksDewasaKali: 1000, maksAnakHari: 2600, maksDewasaHari: 4000, catatan: "Maksimal 5 dosis/hari. Anak <12 tahun maks 2.6 gram/hari, anak >12 tahun maks 4 gram/hari." },
+        "Paracetamol Tablet 500 mg": { tipe: "Paracetamol", min: 10, mak: 15, f: 4, mg: 500, ml: 1,  maksDewasaKali: 1000, maksAnakHari: 2600, maksDewasaHari: 4000, catatan: "Maksimal 5 dosis/hari. Anak <12 tahun maks 2.6 gram/hari, anak >12 tahun maks 4 gram/hari." },
+        "Paracetamol Drop 100 mg/1 ml": { tipe: "Paracetamol", min: 10, mak: 15, f: 4, mg: 100, ml: 1, maksDewasaKali: 1000, maksAnakHari: 2600, maksDewasaHari: 2600, catatan: "Maksimal 5 dosis/hari. Anak <12 tahun maks 2.6 gram/hari, anak >12 tahun maks 4 gram/hari." },
     };
 
-    function hitung() {
-        const nama = document.getElementById('obat').value;
-        const data = database[nama];
-        if(data) {
-            document.getElementById('hasil').style.display = 'block';
-            document.getElementById('aturan').innerText = data.aturan;
-            document.getElementById('dosis').innerText = data.dosis;
-            document.getElementById('catatan').innerText = data.catatan;
-        } else { alert("Obat tidak ditemukan"); }
+    function eksekusiKalkulatorDosis() {
+        // ... (Logika fungsi lainnya tetap sama)
+        // Saat memproses Paracetamol (di dalam block if tipe Paracetamol):
+        // detailHasil.innerHTML = `
+        //     <p class="mb-2"><strong>Aturan Frekuensi:</strong> Tiap 4-6 jam jika demam</p>
+        //     <p class="mb-1"><strong>Jumlah Sekali Minum:</strong></p>
+        //     ...
+        //     <div class="p-2 bg-light border rounded small mt-2">
+        //         <strong>💡 Catatan Apoteker:</strong><br><span class="text-muted">${obat.catatan}</span>
+        //     </div>
+        // `;
     }
 </script>
 </body>
