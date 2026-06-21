@@ -2,59 +2,40 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Kalkulator Dosis Anak Pintar</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Kalkulator Dosis Anak</title>
     <style>
-        body { background-color: #f8f9fa; }
-        .card { border-radius: 20px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .hasil-box { background-color: #ffffff; border-left: 6px solid #198754; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 5px; }
+        .dosage { font-size: 1.5em; font-weight: bold; color: #d9534f; }
     </style>
 </head>
-<body class="p-3">
-
-<div class="container" style="max-width: 500px;">
-    <div class="card p-4">
-        <h4 class="text-primary text-center fw-bold">Kalkulator Dosis Anak Pintar</h4>
-        <div id="status" class="text-center text-success mb-3">✅ Data Siap</div>
-        
-        <input type="text" id="obat-search" class="form-control mb-3" placeholder="Ketik & Pilih Sediaan Obat" list="list-obat">
-        <datalist id="list-obat"></datalist>
-        
-        <input type="number" id="input-bb" class="form-control mb-3" placeholder="Berat Badan Pasien (kg)">
-        
-        <button class="btn btn-primary w-100 btn-lg" onclick="hitung()">Hitung & Validasi Dosis</button>
-
-        <div id="hasil" class="hasil-box d-none">
-            <h6 class="fw-bold">Hasil Validasi Klinis:</h6>
-            <div id="konten-hasil"></div>
+<body>
+    <div class="container">
+        <h2>Kalkulator Dosis Anak</h2>
+        <input type="text" id="obat" placeholder="Ketik nama obat..." list="obat-list">
+        <datalist id="obat-list"></datalist>
+        <input type="number" id="berat" placeholder="Berat badan (kg)">
+        <input type="number" id="umur" placeholder="Umur">
+        <select id="satuan-umur"><option value="bulan">Bulan</option><option value="tahun">Tahun</option></select>
+        <button onclick="hitung()">Hitung Dosis</button>
+        <div id="hasil" class="result" style="display:none;">
+            <p><strong>Aturan Pakai:</strong> <span id="aturan"></span></p>
+            <p><strong>Dosis Sekali Minum:</strong> <span class="dosage" id="dosis"></span></p>
+            <p><strong>Setara Zat Aktif:</strong> <span id="zat-aktif"></span></p>
+            <p><strong>Catatan Apoteker:</strong> <span id="catatan"></span></p>
         </div>
     </div>
-</div>
-
-<script>
-// Data dummy atau fungsi fetch Anda tetap sama
-let DB = {
-    "Paracetamol Sirup 120 mg": {
-        dosis: "5 ml",
-        aturan: "Tiap 4-6 jam jika demam",
-        catatan: "Maksimal 5 dosis/hari. Anak <12 tahun maks 2.6 gram/hari, anak >12 tahun maks 4 gram/hari."
-    }
-};
-
-function hitung() {
-    let kunci = document.getElementById('obat-search').value;
-    let data = DB[kunci];
-    
-    if (data) {
-        document.getElementById('hasil').classList.remove('d-none');
-        document.getElementById('konten-hasil').innerHTML = `
-            <p><strong>Aturan Frekuensi:</strong> ${data.aturan}</p>
-            <p><strong>Jumlah Sekali Minum:</strong> <span class="text-success fw-bold fs-4">5.0 ml s/d 7.5 ml</span></p>
-            <small class="text-muted">Zat aktif aktual: 120 mg - 180 mg sekali minum.</small>
-            <div class="card bg-light p-2 mt-3"><small><strong>Catatan Apoteker:</strong> ${data.catatan}</small></div>
-        `;
-    }
-}
-</script>
+    <script>
+        // Logika aplikasi akan membaca dari file CSV/JSON yang diintegrasikan
+        function hitung() {
+            document.getElementById('hasil').style.display = 'block';
+            // Placeholder logika perhitungan
+            document.getElementById('dosis').innerText = "5 ml - 7.5 ml";
+        }
+    </script>
 </body>
 </html>
