@@ -4,43 +4,52 @@
     <meta charset="UTF-8">
     <title>Kalkulator Dosis Anak</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
-        .card { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
-        button { background: #28a745; color: white; cursor: pointer; }
-        .hasil { margin-top: 20px; padding: 15px; background: #e8f5e9; border-left: 5px solid #28a745; }
-        .dosis-besar { font-size: 24px; font-weight: bold; color: #d32f2f; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #eee; border-radius: 6px; background: #fafafa; display: none; }
+        .dosage-val { font-size: 22px; color: #d9534f; font-weight: bold; margin: 10px 0; display: block; }
     </style>
 </head>
 <body>
-<div class="card">
+<div class="container">
     <h2>Kalkulator Dosis Anak</h2>
-    <input type="text" id="obat" placeholder="Contoh: Paracetamol" list="daftar-obat">
-    <datalist id="daftar-obat">
-        <option value="Paracetamol">
-        <option value="Amoxicillin">
-    </datalist>
-    <input type="number" id="bb" placeholder="Berat Badan (kg)">
+    <input type="text" id="obat" list="list-obat" placeholder="Ketik nama obat...">
+    <datalist id="list-obat"></datalist>
+    <input type="number" id="bb" placeholder="Berat badan (kg)">
     <button onclick="hitung()">Hitung Dosis</button>
-    <div id="hasil" class="hasil" style="display:none;">
-        <p>Aturan: <span id="aturan"></span></p>
-        <p>Dosis: <span class="dosis-besar" id="dosis"></span></p>
-        <p>Catatan: <span id="catatan"></span></p>
+    <div id="hasil" class="result">
+        <p><strong>Aturan Pakai:</strong> <span id="aturan"></span></p>
+        <p><strong>Dosis Sekali Minum:</strong> <span class="dosage-val" id="dosis"></span></p>
+        <p><strong>Catatan Apoteker:</strong> <span id="catatan"></span></p>
     </div>
 </div>
+
 <script>
-    // Data dummy (ganti bagian ini dengan data dari CSV Anda)
-    const db = { "Paracetamol": { aturan: "Tiap 4-6 jam", dosis: "5ml - 7.5ml", catatan: "Maksimal 5 dosis/hari" } };
-    
+    // MASUKKAN DATA OBAT ANDA DI SINI
+    const database = {
+        "Paracetamol 120mg/5ml": { aturan: "Tiap 4-6 jam jika demam", dosis: "5ml - 7.5ml", catatan: "Maksimal 5 dosis/hari. Anak <12th maks 2.6g/hari." },
+        "Domperidone 5mg/5ml": { aturan: "Tiap 8 jam sebelum makan", dosis: "2.5ml - 5ml", catatan: "Hindari penggunaan jangka panjang." }
+    };
+
+    // Otomatis isi list saat halaman dimuat
+    const datalist = document.getElementById('list-obat');
+    Object.keys(database).forEach(item => {
+        let option = document.createElement('option');
+        option.value = item;
+        datalist.appendChild(option);
+    });
+
     function hitung() {
         const nama = document.getElementById('obat').value;
-        const hasil = db[nama];
-        if(hasil) {
+        const data = database[nama];
+        if(data) {
             document.getElementById('hasil').style.display = 'block';
-            document.getElementById('aturan').innerText = hasil.aturan;
-            document.getElementById('dosis').innerText = hasil.dosis;
-            document.getElementById('catatan').innerText = hasil.catatan;
-        } else { alert('Obat tidak ditemukan'); }
+            document.getElementById('aturan').innerText = data.aturan;
+            document.getElementById('dosis').innerText = data.dosis;
+            document.getElementById('catatan').innerText = data.catatan;
+        } else { alert("Obat tidak ditemukan!"); }
     }
 </script>
 </body>
