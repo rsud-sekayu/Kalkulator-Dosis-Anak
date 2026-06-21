@@ -2,55 +2,45 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalkulator Dosis Anak RSUD Sekayu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f4f6f9; padding-top: 30px; font-family: sans-serif; }
-        .card-utama { border-radius: 16px; border: none; box-shadow: 0 10px 35px rgba(0,0,0,0.08); background: #ffffff; }
-        .header-rs { background: linear-gradient(135deg, #0d6efd, #0a58ca); color: white; border-radius: 16px 16px 0 0; padding: 20px; }
-        .hasil-box { background-color: #ffffff; border-left: 6px solid #198754; padding: 20px; border-radius: 8px; margin-top: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
-    </style>
 </head>
-<body>
+<body class="bg-light p-3">
 
-<div class="container" style="max-width: 600px;">
-    <div class="card card-utama mb-5">
-        <div class="header-rs text-center">
-            <h4 class="fw-bold m-0">Kalkulator Dosis Anak</h4>
-            <div id="status-sync" class="mt-2 text-warning fw-bold">⏳ Memuat Data...</div>
-        </div>
-        <div class="card-body p-4">
-            <input type="text" id="obat-search" class="form-control mb-3" placeholder="Ketik nama obat..." list="daftar-obat-master" oninput="tampilkanHasil()">
-            <datalist id="daftar-obat-master"></datalist>
-            
-            <input type="number" id="input-bb" class="form-control" placeholder="Berat Badan (kg)" oninput="tampilkanHasil()">
-            
-            <div id="area-hasil" class="hasil-box d-none">
-                <div id="konten-hasil"></div>
-            </div>
+<div class="container" style="max-width: 500px;">
+    <div class="card shadow-sm p-4">
+        <h4 class="text-primary text-center">Kalkulator Dosis Anak</h4>
+        <div id="status" class="text-center fw-bold mb-3 text-warning">⏳ Memuat Data...</div>
+        
+        <input type="text" id="obat-search" class="form-control mb-2" placeholder="Ketik nama obat..." list="list-obat">
+        <datalist id="list-obat"></datalist>
+        
+        <input type="number" id="input-bb" class="form-control mb-3" placeholder="Berat Badan (kg)">
+        <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi</button>
+
+        <div id="hasil" class="mt-4 p-3 border-start border-success border-5 bg-white d-none">
+            <h6>Hasil Validasi Klinis:</h6>
+            <div id="konten-hasil"></div>
         </div>
     </div>
 </div>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
 let DB = {};
+const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
 
-fetch(CSV_URL).then(res => res.text()).then(text => {
+// Mengambil data
+fetch(URL).then(res => res.text()).then(text => {
     let baris = text.split(/\r?\n/);
-    let datalist = document.getElementById('daftar-obat-master');
-    
-    // Lewati header, mulai dari baris 1
     for (let i = 1; i < baris.length; i++) {
-        // Regex untuk split koma tapi mengabaikan koma di dalam tanda kutip
+        // Regex ini kunci perbaikannya: memisahkan kolom tanpa merusak isi yang mengandung koma
         let kolom = baris[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
         if (!kolom || kolom.length < 6) continue;
 
         let nama = kolom[1]?.replace(/"/g, '').trim();
         let sediaan = kolom[2]?.replace(/"/g, '').trim();
         let kekuatan = kolom[3]?.replace(/"/g, '').trim();
-        let key = `${nama} ${sediaan} ${kekuatan}`.trim();
+        let key = `${nama} ${sediaan} ${kekuatan}`;
         
         DB[key] = {
             dosis: kolom[4]?.replace(/"/g, '').trim(),
@@ -60,26 +50,23 @@ fetch(CSV_URL).then(res => res.text()).then(text => {
         
         let opt = document.createElement('option');
         opt.value = key;
-        datalist.appendChild(opt);
+        document.getElementById('list-obat').appendChild(opt);
     }
-    document.getElementById('status-sync').innerHTML = "✅ Data Terhubung";
-    document.getElementById('status-sync').className = "mt-2 text-success fw-bold";
+    document.getElementById('status').innerHTML = "✅ Data Terhubung";
+    document.getElementById('status').classList.replace('text-warning', 'text-success');
 });
 
-function tampilkanHasil() {
-    let key = document.getElementById('obat-search').value;
-    let bb = document.getElementById('input-bb').value;
-    let area = document.getElementById('area-hasil');
+function hitung() {
+    let kunci = document.getElementById('obat-search').value;
+    let data = DB[kunci];
+    if (!data) { alert("Obat tidak ditemukan!"); return; }
     
-    if (DB[key] && bb > 0) {
-        area.classList.remove('d-none');
-        document.getElementById('konten-hasil').innerHTML = `
-            <p><strong>Rentang Dosis:</strong> ${DB[key].dosis}</p>
-            <p><strong>Aturan Pakai:</strong> ${DB[key].aturan}</p>
-            <hr>
-            <small class="text-muted">Sumber: ${DB[key].sumber}</small>
-        `;
-    }
+    document.getElementById('hasil').classList.remove('d-none');
+    document.getElementById('konten-hasil').innerHTML = `
+        <p><strong>Rentang Dosis:</strong> ${data.dosis}</p>
+        <p><strong>Aturan Pakai:</strong> ${data.aturan}</p>
+        <hr><small>Sumber: ${data.sumber}</small>
+    `;
 }
 </script>
 </body>
