@@ -85,151 +85,67 @@
 
 
 <script>
-
     let db = [];
-
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
-
-
-
-    Papa.parse(url, { download: true, header: true, complete: (res) => { db = res.data; populateList(); } });
-
-
-
-    function populateList() {
-
-        const list = document.getElementById('list-obat');
-
-        // Menggunakan kolom yang menggabungkan nama dan kekuatan
-
-        [...new Set(db.map(o => o["Nama Obat dengan Kekuatan Sediaan"]))].forEach(name => {
-
-            let opt = document.createElement('option'); opt.value = name; list.appendChild(opt);
-
-        });
-
-    }
-
-
-
-    // Event saat obat dipilih: Munculkan input BB/Umur secara otomatis
-
-    document.getElementById('obat-search').addEventListener('input', function() {
-
-        const matches = db.filter(x => x["Nama Obat dengan Kekuatan Sediaan"] === this.value);
-
-        if (matches.length === 0) return;
-
-
-
-        const container = document.getElementById('opsi-container');
-
-        const o = matches[0];
-
-
-
-        // Tampilkan Input sesuai Jenis Perhitungan
-
-        let htmlInput = "";
-
-        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
-
-            htmlInput = `<label class="fw-bold mb-2">Berat Badan (kg)</label><input type="number" id="bb" class="form-control mb-3" step="0.1">`;
-
-        } else {
-
-            htmlInput = `<label class="fw-bold mb-2">Umur Pasien</label><div class="input-group mb-3"><input type="number" id="umur" class="form-control"><select class="form-select" id="satuan-umur"><option value="th">Tahun</option><option value="bln">Bulan</option></select></div>`;
-
+    
+    Papa.parse(url, {
+        download: true, 
+        header: true, 
+        complete: (res) => { 
+            db = res.data; 
+            const list = document.getElementById('list-obat');
+            // Menampilkan daftar obat berdasarkan kolom yang benar di CSV Anda
+            db.forEach(o => {
+                const nama = o["Nama Obat dengan Kekuatan Sediaan"];
+                if(nama) {
+                    let opt = document.createElement('option'); 
+                    opt.value = nama; 
+                    list.appendChild(opt);
+                }
+            });
         }
-
-
-
-        // Jika ada banyak indikasi (Cefixime Tifoid dll), munculkan dropdown
-
-        if (matches.length > 1) {
-
-            htmlInput += `<label class="fw-bold mb-2">Pilih Indikasi Khusus</label><select id="indikasi-khusus" class="form-select mb-3">${matches.map((m, i) => `<option value="${i}">${m["Indikasi"] || "Umum"}</option>`).join('')}</select>`;
-
-        }
-
-        
-
-        container.innerHTML = htmlInput;
-
     });
 
-
-
     function hitung() {
-
-        const nama = document.getElementById('obat-search').value;
-
-        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
-
-        if (!o) return alert("Pilih obat dari daftar!");
-
-
-
-        // Ambil input BB atau Umur
-
-        const bb = parseFloat(document.getElementById('bb')?.value || 0);
-
+        const namaInput = document.getElementById('obat-search').value;
+        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === namaInput);
         
-
-        // Logika Perhitungan Dosis
-
-        let dMin = parseFloat(o["Dosis Min"]);
-
-        let dMak = parseFloat(o["Dosis Mak"]);
-
-        let dosisTeks = "";
-
-
-
-        // Jika berbasis BB
-
-        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
-
-            dMin *= bb; dMak *= bb;
-
-            dosisTeks = `${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg`;
-
-        } else {
-
-            // Flat - Ambil dari sheet Dosis Flat (Logika lookup sederhana)
-
-            dosisTeks = `${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg`;
-
+        if (!o) {
+            alert("Obat tidak ditemukan. Pilih dari daftar!");
+            return;
         }
 
-
-
-        // Tampilkan hasil
+        // AMBIL DATA DARI KOLOM YANG TEPAT (sesuai CSV Anda)
+        const bentukSediaan = o["Bentuk Sediaan"] || "-";
+        const kekuatan = o["Kekuatan Sediaan"] || "-";
+        const bb = parseFloat(document.getElementById('bb')?.value) || 0;
+        
+        // Perhitungan Dosis
+        const dMin = parseFloat(o["Dosis Min"] || 0);
+        const dMak = parseFloat(o["Dosis Mak"] || 0);
+        const hitungBB = (o["Jenis Perhitungan"] === "Per Hari - BB");
+        
+        const hasilMin = hitungBB ? (dMin * bb) : dMin;
+        const hasilMak = hitungBB ? (dMak * bb) : dMak;
 
         document.getElementById('hasil').classList.remove('d-none');
-
         document.getElementById('hasil').innerHTML = `
-
-            <h5>📋 Hasil Validasi Klinis:</h5>
-
-            <p><strong>Obat:</strong> ${o["Nama Obat"]} (${o["Kekuatan Sediaan"]})</p>
-
-            <p><strong>Jumlah Sekali Minum:</strong><br>
-
-            <span class="text-success fw-bold fs-3">${dosisTeks}</span></p>
-
-            <p><strong>Aturan Frekuensi:</strong> tiap 4-6 jam jika demam</p>
-
-            <div class="bg-light p-3 mt-3 rounded">
-
-                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
-
+            <div class="result-box">
+                <h5>${o["Nama Obat"] || "-"}</h5>
+                <p><strong>Sediaan:</strong> ${bentukSediaan} | ${kekuatan}</p>
+                <hr>
+                <p><strong>Dosis Sekali Minum:</strong><br>
+                <span class="text-success fs-3 fw-bold">${hasilMin.toFixed(0)} - ${hasilMak.toFixed(0)} mg</span></p>
+                
+                <p><strong>Aturan Pakai:</strong><br>${o["Aturan Pakai"] || "Tiap 4-6 jam jika demam"}</p>
+                
+                <div class="alert alert-info small">
+                    <strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}
+                </div>
+                <p class="small text-muted"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</p>
             </div>
-
-            <div class="mt-2 text-muted small"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</div>`;
-
+        `;
     }
-
 </script>
 
 </body>
