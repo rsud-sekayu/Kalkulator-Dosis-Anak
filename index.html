@@ -92,9 +92,21 @@
         if (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) dMak = manualMaks;
         if (dMin > dMak) dMin = dMak;
 
-        const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
-        const isCair = oBB["Bentuk Sediaan"].toLowerCase().includes("sirup") || oBB["Bentuk Sediaan"].toLowerCase().includes("drop");
-        const volume = parseFloat(oBB["Volume Sediaan"] || 1);
+        const bentuk = oBB["Bentuk Sediaan"] ? oBB["Bentuk Sediaan"].toLowerCase() : "";
+    const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
+    const volume = parseFloat(oBB["Volume Sediaan"] || 1);
+
+    const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
+                   bentuk.includes("injeksi") || bentuk.includes("rektal");
+
+    let satuan = "tab"; // default
+    if (isCair) {
+        satuan = "ml";
+    }
+    // Jika rektal/tube, kita override satuannya agar lebih jelas
+    if (bentuk.includes("rektal") || bentuk.includes("tube")) {
+        satuan = "ml (dalam tube)";
+    }
         
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
         const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
