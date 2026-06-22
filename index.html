@@ -110,56 +110,44 @@
 
 
 
-    function hitung() {
-
+  function hitung() {
         const nama = document.getElementById('obat-search').value;
-
         const bb = parseFloat(document.getElementById('bb').value);
-
         const o = db.find(x => x["Nama Obat"] === nama);
-
         if (!o || !bb) return alert("Lengkapi data!");
 
-
-
-        // Perhitungan Dosis Sekali Minum (mg)
-
+        // Perhitungan Dosis (mg)
         const dMin = parseFloat(o["Dosis Min"]) * bb;
-
         const dMak = parseFloat(o["Dosis Mak"]) * bb;
-
+        const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
         
+        let hasilDosis = "";
 
-        // Konversi ke ml jika sediaan cair (Contoh sederhana: dosis/kekuatan)
-
-        const vMin = (dMin / parseFloat(o["Kekuatan Sediaan"]) * parseFloat(o["Volume Sediaan"])).toFixed(1);
-
-        const vMak = (dMak / parseFloat(o["Kekuatan Sediaan"]) * parseFloat(o["Volume Sediaan"])).toFixed(1);
-
-
+        // LOGIKA PENENTU SEDIAAN (Cair vs Padat)
+        if (o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop")) {
+            // Perhitungan Cair (ml)
+            const volume = parseFloat(o["Volume Sediaan"]);
+            const vMin = (dMin / kekuatan * volume).toFixed(1);
+            const vMak = (dMak / kekuatan * volume).toFixed(1);
+            hasilDosis = `${vMin} ml s/d ${vMak} ml`;
+        } else {
+            // Perhitungan Padat (Tablet)
+            const tMin = (dMin / kekuatan).toFixed(1);
+            const tMak = (dMak / kekuatan).toFixed(1);
+            hasilDosis = `${tMin} tab s/d ${tMak} tab`;
+        }
 
         document.getElementById('hasil').classList.remove('d-none');
-
         document.getElementById('hasil').innerHTML = `
-
             <h5>📋 Hasil Validasi Klinis:</h5>
-
             <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
-
             <p><strong>Jumlah Sekali Minum:</strong><br>
-
-            <span class="text-success fw-bold fs-3">${vMin} ml s/d ${vMak} ml</span></p>
-
-            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg sekali minum.</small>
-
+            <span class="text-success fw-bold fs-3">${hasilDosis}</span></p>
+            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg.</small>
             <div class="bg-light p-3 mt-3 rounded">
-
                 <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
-
-            <p><strong>Referensi:</strong> ${o["Sumber"]}</p>
-
+                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
             </div>`;
-
     }
 
 </script>
