@@ -116,15 +116,21 @@
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
 
-        // 2. Pembatasan Otomatis
-        const dMaxHari = parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
-        const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
-        const batasPerKali = dMaxHari / frekuensi;
+        // 2. Pembatasan Otomatis (Double-Lock Validation)
+let dMaxHari;
+const umur = parseFloat(document.getElementById('umur').value);
 
-        if (dMak > batasPerKali) {
-            dMak = batasPerKali;
-        }
-        if (dMin > dMak) dMin = dMak;
+// Logika batasan berdasarkan usia
+if (umur < 12) {
+    // Gunakan 2600 mg (2.6 gram) untuk anak < 12 tahun
+    dMaxHari = parseFloat(o["Maks Dosis Anak Hari"] || 2600); 
+} else {
+    // Gunakan 4000 mg (4 gram) untuk dewasa/anak >= 12 tahun
+    dMaxHari = parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
+}
+
+const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
+const batasPerKali = dMaxHari / frekuensi;
 
         // 3. Konversi ke ml atau tablet
         const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
