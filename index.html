@@ -77,11 +77,13 @@
 
         // 3. LOGIKA PEMOTONGAN (KUNCI PERBAIKAN)
         // Kita terapkan pemotongan langsung pada dMak
-        if (batasPerKali !== null && dMak > batasPerKali) {
-            dMak = batasPerKali;
+        if (batasPerKali !== null) {
+            if (dMak > batasPerKali) {
+                dMak = batasPerKali;
+            }
         }
         
-        // Pastikan dMin tidak lebih besar dari dMak setelah dipotong
+        // Pastikan dMin tidak melebihi batas baru
         if (dMin > dMak) dMin = dMak;
 
         // 4. Konversi ke ml atau tablet
@@ -89,9 +91,8 @@
         const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
         const volume = parseFloat(o["Volume Sediaan"] || 1);
         
-        // Hitung hasil akhir
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
-        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
+        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan); // hMak sekarang memakai dMak yang sudah dipotong!
         const satuan = isCair ? "ml" : "tab";
 
         // Tampilkan
