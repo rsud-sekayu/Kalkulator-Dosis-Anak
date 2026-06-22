@@ -139,11 +139,15 @@
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <h5>📋 Hasil Validasi Klinis:</h5>
+            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
             <p><strong>Dosis Sekali Minum:</strong><br>
-            <span class="text-success fw-bold fs-3">${hasilMin.toFixed(1)} - ${hasilMak.toFixed(1)} ${satuan}</span></p>
+            <span class="text-success fw-bold fs-3">${hasilDosis}</span></p>
+            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg.</small>
+            <div class="bg-light p-3 mt-3 rounded">
             <p class="small text-danger">*Dosis dibatasi otomatis agar tidak melebihi ${dMaxHari} mg per hari.</p>
             <div class="bg-light p-3 rounded">
                 <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+            <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
             </div>`;
     }
 </script>
