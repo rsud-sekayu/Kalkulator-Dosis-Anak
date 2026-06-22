@@ -1,108 +1,237 @@
 <!DOCTYPE html>
+
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Kalkulator Dosis Anak Pintar</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
     <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+
+        body { background-color: #f0f2f5; font-family: sans-serif; }
+
         .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .card-header { background: #0d6efd; color: white; border-radius: 15px 15px 0 0; text-align: center; padding: 20px; }
-        .result-box { border-left: 5px solid #198754; background: #fff; padding: 25px; border-radius: 10px; margin-top: 20px; }
+
+        .card-header { background: #0d6efd; color: white; border-radius: 15px 15px 0 0 !important; text-align: center; padding: 20px; }
+
+        .btn-primary { background: #0d6efd; border: none; padding: 15px; font-weight: bold; }
+
+        .result-box { border-left: 5px solid #198754; background: #fff; padding: 20px; border-radius: 10px; }
+
     </style>
+
 </head>
+
 <body class="p-3">
+
 <div class="container" style="max-width: 500px;">
-    <div class="card">
+
+    <div class="card mt-4">
+
         <div class="card-header">
-            <h4 class="mb-0">Kalkulator Dosis Anak</h4>
-            <small>RSUD Sekayu</small>
+
+            <h4 class="mb-0">Kalkulator Dosis Anak Pintar</h4>
+
+            <small>Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
+
         </div>
+
         <div class="card-body p-4">
-            <label class="fw-bold mb-2">Pilih Obat</label>
+
+            <label class="fw-bold mb-2">Ketik & Pilih Sediaan Obat</label>
+
             <input type="text" id="obat-search" class="form-control mb-3" list="list-obat" placeholder="Ketik nama obat...">
+
             <datalist id="list-obat"></datalist>
 
-            <div id="dynamic-inputs"></div>
-            <div id="opsi-indikasi-container" class="mb-3"></div>
+
+
+            <label class="fw-bold mb-2">Berat Badan Pasien (kg)</label>
+
+            <input type="number" id="bb" class="form-control mb-3" placeholder="Contoh: 12.5">
+
             
-            <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi</button>
+
+            <div class="row">
+
+                <div class="col-8"><label class="fw-bold mb-2">Umur Pasien</label><input type="number" id="umur" class="form-control mb-3"></div>
+
+                <div class="col-4"><label>&nbsp;</label><select class="form-select"><option>Tahun</option></select></div>
+
+            </div>
+
+
+
+            <div id="opsi-container" class="mb-3"></div>
+
+            <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi Dosis</button>
+
         </div>
+
     </div>
-    <div id="hasil" class="d-none result-box shadow-sm"></div>
+
+    <div id="hasil" class="mt-4 d-none result-box shadow-sm"></div>
+
 </div>
 
+
+
 <script>
+
     let db = [];
+
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
-    
-    Papa.parse(url, {download: true, header: true, complete: (res) => { db = res.data; populateList(); }});
+
+
+
+    Papa.parse(url, { download: true, header: true, complete: (res) => { db = res.data; populateList(); } });
+
+
 
     function populateList() {
+
         const list = document.getElementById('list-obat');
-        [...new Set(db.map(o => o["Nama Obat"]))].forEach(name => {
+
+        // Menggunakan kolom yang menggabungkan nama dan kekuatan
+
+        [...new Set(db.map(o => o["Nama Obat dengan Kekuatan Sediaan"]))].forEach(name => {
+
             let opt = document.createElement('option'); opt.value = name; list.appendChild(opt);
+
         });
+
     }
+
+
+
+    // Event saat obat dipilih: Munculkan input BB/Umur secara otomatis
 
     document.getElementById('obat-search').addEventListener('input', function() {
-        const matches = db.filter(x => x["Nama Obat"] === this.value);
+
+        const matches = db.filter(x => x["Nama Obat dengan Kekuatan Sediaan"] === this.value);
+
         if (matches.length === 0) return;
 
-        // Tampilkan Input Dinamis (BB atau Umur)
-        const container = document.getElementById('dynamic-inputs');
-        const hasBB = matches.some(m => m["Dosis Min"]);
-        container.innerHTML = hasBB ? 
-            `<label class="fw-bold mb-2">Berat Badan (kg)</label><input type="number" id="bb" class="form-control mb-3" step="0.1">` :
-            `<label class="fw-bold mb-2">Umur</label><div class="input-group mb-3"><input type="number" id="umur" class="form-control"><select class="form-select" id="satuan-umur"><option value="th">Tahun</option><option value="bln">Bulan</option></select></div>`;
 
-        // Tampilkan Opsi Indikasi jika banyak
-        const optCont = document.getElementById('opsi-indikasi-container');
-        optCont.innerHTML = matches.length > 1 ? 
-            `<label class="fw-bold mb-2">Pilih Indikasi/Sediaan</label><select id="opsi-indikasi" class="form-select">${matches.map((m, i) => `<option value="${i}">${m["Indikasi"] || m["Nama Obat"]}</option>`).join('')}</select>` : "";
+
+        const container = document.getElementById('opsi-container');
+
+        const o = matches[0];
+
+
+
+        // Tampilkan Input sesuai Jenis Perhitungan
+
+        let htmlInput = "";
+
+        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
+
+            htmlInput = `<label class="fw-bold mb-2">Berat Badan (kg)</label><input type="number" id="bb" class="form-control mb-3" step="0.1">`;
+
+        } else {
+
+            htmlInput = `<label class="fw-bold mb-2">Umur Pasien</label><div class="input-group mb-3"><input type="number" id="umur" class="form-control"><select class="form-select" id="satuan-umur"><option value="th">Tahun</option><option value="bln">Bulan</option></select></div>`;
+
+        }
+
+
+
+        // Jika ada banyak indikasi (Cefixime Tifoid dll), munculkan dropdown
+
+        if (matches.length > 1) {
+
+            htmlInput += `<label class="fw-bold mb-2">Pilih Indikasi Khusus</label><select id="indikasi-khusus" class="form-select mb-3">${matches.map((m, i) => `<option value="${i}">${m["Indikasi"] || "Umum"}</option>`).join('')}</select>`;
+
+        }
+
+        
+
+        container.innerHTML = htmlInput;
+
     });
 
+
+
     function hitung() {
+
         const nama = document.getElementById('obat-search').value;
-        const sel = document.getElementById('opsi-indikasi');
-        const idx = sel ? sel.value : 0;
-        const o = db.filter(x => x["Nama Obat"] === nama)[idx];
+
+        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
+
+        if (!o) return alert("Pilih obat dari daftar!");
+
+
+
+        // Ambil input BB atau Umur
+
+        const bb = parseFloat(document.getElementById('bb')?.value || 0);
+
         
-        if (!o) return alert("Pilih obat!");
 
-        // Hitung Dosis
-        let dMin, dMak;
-        if (o["Dosis Min"]) {
-            const bb = parseFloat(document.getElementById('bb').value);
-            dMin = parseFloat(o["Dosis Min"]) * bb;
-            dMak = parseFloat(o["Dosis Mak"]) * bb;
+        // Logika Perhitungan Dosis
+
+        let dMin = parseFloat(o["Dosis Min"]);
+
+        let dMak = parseFloat(o["Dosis Mak"]);
+
+        let dosisTeks = "";
+
+
+
+        // Jika berbasis BB
+
+        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
+
+            dMin *= bb; dMak *= bb;
+
+            dosisTeks = `${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg`;
+
         } else {
-            dMin = parseFloat(o["Dosis Min"]); // Mengambil nilai flat
-            dMak = parseFloat(o["Dosis Mak"]);
+
+            // Flat - Ambil dari sheet Dosis Flat (Logika lookup sederhana)
+
+            dosisTeks = `${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg`;
+
         }
 
-        // Hitung Volume jika cair
-        let hasilTeks = "";
-        const kek = o["Kekuatan Sediaan"] || "";
-        if (kek.toLowerCase().includes("ml")) {
-            const mg = parseFloat(kek);
-            const ml = parseFloat(kek.split("/")[1]);
-            hasilTeks = `<span class="text-success fs-3 fw-bold">${(dMin/mg*ml).toFixed(1)} - ${(dMak/mg*ml).toFixed(1)} ml</span>`;
-        } else {
-            hasilTeks = `<span class="text-success fs-3 fw-bold">${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg</span>`;
-        }
+
+
+        // Tampilkan hasil
 
         document.getElementById('hasil').classList.remove('d-none');
+
         document.getElementById('hasil').innerHTML = `
-            <h5>${o["Nama Obat"]}</h5>
-            <p>${o["Bentuk Sediaan"]} - ${o["Kekuatan Sediaan"]}</p>
-            <p><strong>Dosis:</strong> ${hasilTeks}</p>
-            <p><strong>Aturan:</strong> ${o["Aturan Pakai"]}</p>
-            <div class="alert alert-secondary"><strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}</div>
-            <div class="small"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</div>`;
+
+            <h5>📋 Hasil Validasi Klinis:</h5>
+
+            <p><strong>Obat:</strong> ${o["Nama Obat"]} (${o["Kekuatan Sediaan"]})</p>
+
+            <p><strong>Jumlah Sekali Minum:</strong><br>
+
+            <span class="text-success fw-bold fs-3">${dosisTeks}</span></p>
+
+            <p><strong>Aturan Frekuensi:</strong> tiap 4-6 jam jika demam</p>
+
+            <div class="bg-light p-3 mt-3 rounded">
+
+                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
+
+            </div>
+
+            <div class="mt-2 text-muted small"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</div>`;
+
     }
+
 </script>
+
 </body>
+
 </html>
