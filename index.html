@@ -67,29 +67,34 @@
         
         if (!o || !bb || isNaN(umur)) return alert("Lengkapi data dengan benar!");
 
+        // 1. Hitung dosis mg berdasarkan BB
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
         
-        // Mengambil batas dari Google Sheet tanpa nilai default hard-coded
-        let batasPerKali = null;
+        // 2. Ambil batas dari Sheet
         const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
+        let batasPerKali = (!isNaN(manualMaksSekali) && manualMaksSekali > 0) ? manualMaksSekali : null;
 
-        // Logic: Jika ada nilai di Sheet, gunakan sebagai pembatas
-        if (!isNaN(manualMaksSekali) && manualMaksSekali > 0) {
-            batasPerKali = manualMaksSekali;
-            if (dMak > batasPerKali) dMak = batasPerKali;
+        // 3. LOGIKA PEMOTONGAN (KUNCI PERBAIKAN)
+        // Kita terapkan pemotongan langsung pada dMak
+        if (batasPerKali !== null && dMak > batasPerKali) {
+            dMak = batasPerKali;
         }
         
+        // Pastikan dMin tidak lebih besar dari dMak setelah dipotong
         if (dMin > dMak) dMin = dMak;
 
+        // 4. Konversi ke ml atau tablet
         const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
         const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
         const volume = parseFloat(o["Volume Sediaan"] || 1);
         
+        // Hitung hasil akhir
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
         const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
         const satuan = isCair ? "ml" : "tab";
 
+        // Tampilkan
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <h5>📋 Hasil Validasi Klinis:</h5>
