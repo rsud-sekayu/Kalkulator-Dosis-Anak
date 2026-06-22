@@ -1,161 +1,321 @@
 <!DOCTYPE html>
+
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Kalkulator Dosis Anak</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
     <style>
+
         body { background-color: #f0f2f5; font-family: sans-serif; }
+
         .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+
         .card-header { background: #0d6efd; color: white; border-radius: 15px 15px 0 0 !important; text-align: center; padding: 20px; }
+
         .btn-primary { background: #0d6efd; border: none; padding: 15px; font-weight: bold; }
+
         .result-box { border-left: 5px solid #198754; background: #fff; padding: 20px; border-radius: 10px; }
+
     </style>
+
 </head>
+
 <body class="p-3">
+
 <div class="container" style="max-width: 500px;">
+
     <div class="card mt-4">
+
         <div class="card-header">
+
             <h4 class="mb-0">Kalkulator Dosis Anak</h4>
+
             <small>Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
+
         </div>
+
         <div class="card-body p-4">
+
             <label class="fw-bold mb-2">Ketik & Pilih Sediaan Obat</label>
+
             <input type="text" id="obat-search" class="form-control mb-3" list="list-obat" placeholder="Ketik nama obat...">
+
             <datalist id="list-obat"></datalist>
 
+
+
             <label class="fw-bold mb-2">Berat Badan Pasien (kg)</label>
+
             <input type="number" id="bb" class="form-control mb-3" placeholder="Contoh: 12.5">
+
             
+
             <div class="row">
+
                 <div class="col-8"><label class="fw-bold mb-2">Umur Pasien</label><input type="number" id="umur" class="form-control mb-3"></div>
+
             <div class="col-4">
+
     <label>&nbsp;</label>
+
     <select id="umur-satuan" class="form-select">
+
         <option value="tahun">Tahun</option>
+
         <option value="bulan">Bulan</option>
+
     </select>
+
     </div>
+
+
 
             <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi Dosis</button>
+
         </div>
+
     </div>
+
     <div id="hasil" class="mt-4 d-none result-box shadow-sm"></div>
+
 </div>
 
+
+
 <script>
+
     let dbBB = [];
+
     let dbFlat = [];
+
     
+
     const urlBB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=957732586&single=true&output=csv";
+
     const urlFlat = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=944311413&single=true&output=csv";
+
     
+
     // Fungsi untuk mengisi datalist setelah data dimuat
+
     function populateList() {
+
         const list = document.getElementById('list-obat');
+
         list.innerHTML = ""; // Bersihkan list dulu
+
         const allObat = [...dbBB, ...dbFlat];
+
         allObat.forEach(o => {
+
             if(o["Nama Obat"]) {
+
                 let opt = document.createElement('option'); 
+
                 opt.value = o["Nama Obat"]; 
+
                 list.appendChild(opt);
+
             }
+
         });
+
     }
+
+
 
     Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
+
     Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
 
+
+
     function hitung() {
+
         const nama = document.getElementById('obat-search').value.trim();
+
         
+
         const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+
         if (oFlat) {
+
             jalurDosisFlat(oFlat);
+
             return;
+
         }
+
+
 
         const oBB = dbBB.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+
         if (!oBB) return alert("Obat tidak ditemukan!");
+
         
+
         const bb = parseFloat(document.getElementById('bb').value);
+
         const umur = parseFloat(document.getElementById('umur').value);
+
         if (!bb || isNaN(umur)) return alert("Lengkapi data Berat Badan dan Umur!");
 
+
+
         let dMin = parseFloat(oBB["Dosis Min"]) * bb;
+
         let dMak = parseFloat(oBB["Dosis Mak"]) * bb;
+
         const manualMaks = parseFloat(oBB["Maks Sekali Minum"]);
+
         
+
         if (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) dMak = manualMaks;
+
         if (dMin > dMak) dMin = dMak;
 
+
+
         const bentuk = oBB["Bentuk Sediaan"] ? oBB["Bentuk Sediaan"].toLowerCase() : "";
+
         const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
+
         const volume = parseFloat(oBB["Volume Sediaan"] || 1);
 
+
+
         const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
+
                        bentuk.includes("injeksi") || bentuk.includes("rektal");
 
+
+
         // Logika satuan diperbaiki agar tidak double deklarasi
+
         let satuanFinal = isCair ? "ml" : "tab";
+
         if (bentuk.includes("rektal") || bentuk.includes("tube")) {
+
             satuanFinal = "ml (dalam tube)";
+
         }
+
         
+
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
+
         const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
 
+
+
         tampilkanHasilBB(oBB, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuanFinal);
+
     }
+
+
 
     // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
+
     function jalurDosisFlat(o) {
+
         const umurInput = parseFloat(document.getElementById('umur').value);
+
         const satuan = document.getElementById('umur-satuan').value;
+
         const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
+
         
+
         let kat = "";
+
         if (o["Umur / Kondisi"] === "Semua Umur") kat = "Semua Umur";
+
         else if (o["Nama Obat"].toLowerCase().includes("zinc")) kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
+
         else {
+
             if (bulan < 24) kat = "Anak <2 tahun";
+
             else if (bulan < 72) kat = "Anak 2-6 tahun";
+
             else if (bulan <= 144) kat = "Anak 6-12 tahun";
+
             else kat = "Anak >12 tahun";
+
         }
+
         
+
         const data = dbFlat.find(x => x["Nama Obat"].trim().toLowerCase() === o["Nama Obat"].trim().toLowerCase() && x["Umur / Kondisi"].trim() === kat);
+
         
+
         if (!data) return alert("Data untuk kategori: " + kat + " tidak ditemukan!");
+
         
+
         document.getElementById('hasil').classList.remove('d-none');
+
         document.getElementById('hasil').innerHTML = `
+
             <h5>📋 Hasil Validasi Klinis:</h5>
+
             <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
+
             <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${data["Dosis Sekali Minum"]}</span></p>
+
             <div class="bg-light p-3 rounded mt-2">
+
                 <strong>💡 Catatan Apoteker:</strong><br>${data["Catatan Klinis"]}
+
                 <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
+
             </div>`;
+
     }
 
+
+
     // FUNGSI TAMPILAN BB (TIDAK BERUBAH)
+
     function tampilkanHasilBB(o, hMin, hMak, dMin, dMak, batasPerKali, satuan) {
+
         document.getElementById('hasil').classList.remove('d-none');
+
         document.getElementById('hasil').innerHTML = `
+
             <h5>📋 Hasil Validasi Klinis:</h5>
+
             <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+
             <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p>
+
             <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
+
             <p class="small text-muted">${batasPerKali ? '*Dosis telah dibatasi maksimal ' + batasPerKali + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
+
             <div class="bg-light p-3 rounded">
+
                 <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+
                 <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
+
             </div>`;
+
     }
+
 </script>
+
 </body>
-</html> 
+
+</html>
