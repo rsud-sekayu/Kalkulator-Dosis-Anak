@@ -121,9 +121,13 @@
         const dMaxHari = (umur < 12) ? parseFloat(o["Maks Dosis Anak Hari"] || 2600) : parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
         const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
         
-        // 3. Tentukan Batas Sekali Minum (Prioritas: Kolom Manual, jika kosong -> Otomatis Hitung)
-        const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
-        const batasPerKali = manualMaksSekali ? manualMaksSekali : (dMaxHari / frekuensi);
+        // 3. Tentukan Batas Sekali Minum dengan pengecekan ekstra
+const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
+
+// Pengecekan: Gunakan manualMaksSekali HANYA jika nilainya adalah angka yang valid (bukan NaN)
+const batasPerKali = (!isNaN(manualMaksSekali) && manualMaksSekali > 0) 
+                     ? manualMaksSekali 
+                     : (dMaxHari / frekuensi);
 
         // 4. Terapkan Validasi (Lapis Ganda)
         if (dMak > batasPerKali) {
