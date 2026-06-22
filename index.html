@@ -85,71 +85,67 @@
 
 
 <script>
-
     let db = [];
-
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
-
     
+    // Memuat data dari CSV
+    Papa.parse(url, {
+        download: true, 
+        header: true, 
+        complete: (res) => { 
+            db = res.data; 
+            const list = document.getElementById('list-obat');
+            db.forEach(o => {
+                if(o["Nama Obat dengan Kekuatan Sediaan"]) {
+                    let opt = document.createElement('option'); 
+                    opt.value = o["Nama Obat dengan Kekuatan Sediaan"]; 
+                    list.appendChild(opt);
+                }
+            });
+        }
+    });
 
-    Papa.parse(url, {download: true, header: true, complete: (res) => { db = res.data; populateList(); }});
-
-
-
-    function populateList() {
-
-        const list = document.getElementById('list-obat');
-
-        [...new Set(db.map(o => o["Nama Obat"]))].forEach(name => {
-
-            let opt = document.createElement('option'); opt.value = name; list.appendChild(opt);
-
-        });
-
-    }
-
-
-
-  function hitung() {
+    function hitung() {
         const nama = document.getElementById('obat-search').value;
         const bb = parseFloat(document.getElementById('bb').value);
-        const o = db.find(x => x["Nama Obat"] === nama);
+        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
+        
         if (!o || !bb) return alert("Lengkapi data!");
 
-        // Perhitungan Dosis (mg)
-        const dMin = parseFloat(o["Dosis Min"]) * bb;
-        const dMak = parseFloat(o["Dosis Mak"]) * bb;
-        const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
-        
-        let hasilDosis = "";
+        // 1. Hitung dosis berdasarkan BB
+        let dMin = parseFloat(o["Dosis Min"]) * bb;
+        let dMak = parseFloat(o["Dosis Mak"]) * bb;
 
-        // LOGIKA PENENTU SEDIAAN (Cair vs Padat)
-        if (o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop")) {
-            // Perhitungan Cair (ml)
-            const volume = parseFloat(o["Volume Sediaan"]);
-            const vMin = (dMin / kekuatan * volume).toFixed(1);
-            const vMak = (dMak / kekuatan * volume).toFixed(1);
-            hasilDosis = `${vMin} ml s/d ${vMak} ml`;
-        } else {
-            // Perhitungan Padat (Tablet)
-            const tMin = (dMin / kekuatan).toFixed(1);
-            const tMak = (dMak / kekuatan).toFixed(1);
-            hasilDosis = `${tMin} tab s/d ${tMak} tab`;
+        // 2. Pembatasan Otomatis (Double-Lock Validation)
+        const dMaxHari = parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
+        const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
+        const batasPerKali = dMaxHari / frekuensi;
+
+        if (dMak > batasPerKali) {
+            dMak = batasPerKali;
         }
+        if (dMin > dMak) dMin = dMak;
 
+        // 3. Konversi ke ml atau tablet
+        const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
+        const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
+        const volume = parseFloat(o["Volume Sediaan"] || 1);
+        
+        const hasilMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
+        const hasilMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
+        const satuan = isCair ? "ml" : "tab";
+
+        // Tampilkan hasil
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <h5>📋 Hasil Validasi Klinis:</h5>
-            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
-            <p><strong>Jumlah Sekali Minum:</strong><br>
-            <span class="text-success fw-bold fs-3">${hasilDosis}</span></p>
-            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg.</small>
-            <div class="bg-light p-3 mt-3 rounded">
+            <p><strong>Dosis Sekali Minum:</strong><br>
+            <span class="text-success fw-bold fs-3">${hasilMin.toFixed(1)} - ${hasilMak.toFixed(1)} ${satuan}</span></p>
+            <p class="small text-danger">*Dosis dibatasi otomatis agar tidak melebihi ${dMaxHari} mg per hari.</p>
+            <div class="bg-light p-3 rounded">
                 <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
-                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
             </div>`;
     }
-
 </script>
 
 </body>
