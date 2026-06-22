@@ -93,53 +93,46 @@
 
 
 <script>
-
     let dbBB = [];
-
     let dbFlat = [];
-
     
-
     const urlBB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=957732586&single=true&output=csv";
-
     const urlFlat = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=944311413&single=true&output=csv";
-
     
-
-    // Fungsi untuk mengisi datalist setelah data dimuat
-
     function populateList() {
-
         const list = document.getElementById('list-obat');
-
-        list.innerHTML = ""; // Bersihkan list dulu
-
+        // Gunakan Set untuk memastikan nama obat unik
         const allObat = [...dbBB, ...dbFlat];
-
-        allObat.forEach(o => {
-
-            if(o["Nama Obat"]) {
-
-                let opt = document.createElement('option'); 
-
-                opt.value = o["Nama Obat"]; 
-
-                list.appendChild(opt);
-
-            }
-
+        const uniqueNames = [...new Set(allObat.map(o => o["Nama Obat"]).filter(n => n))];
+        
+        list.innerHTML = ""; 
+        uniqueNames.forEach(name => {
+            let opt = document.createElement('option'); 
+            opt.value = name; 
+            list.appendChild(opt);
         });
-
     }
 
-
+    // Event Listener untuk mengatur tampilan kolom BB
+    document.getElementById('obat-search').addEventListener('input', function() {
+        const nama = this.value.trim();
+        const bbInput = document.getElementById('bb');
+        const bbLabel = bbInput.previousElementSibling;
+        
+        // Cek apakah obat yang diketik ada di dbFlat
+        const isFlat = dbFlat.some(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+        
+        if (isFlat) {
+            bbInput.style.display = 'none';
+            bbLabel.style.display = 'none';
+        } else {
+            bbInput.style.display = 'block';
+            bbLabel.style.display = 'block';
+        }
+    });
 
     Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
-
     Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
-
-
-
     function hitung() {
 
         const nama = document.getElementById('obat-search').value.trim();
