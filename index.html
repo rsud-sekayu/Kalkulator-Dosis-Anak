@@ -66,21 +66,24 @@
         });
     }
 
-    // Event Listener untuk menyembunyikan BB otomatis
-    document.getElementById('obat-search').addEventListener('input', function() {
-        const nama = this.value.trim();
-        const bbInput = document.getElementById('bb');
-        const bbLabel = bbInput.previousElementSibling;
-        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
-        
-        if (oFlat) {
-            bbInput.style.display = 'none';
-            bbLabel.style.display = 'none';
-        } else {
-            bbInput.style.display = 'block';
-            bbLabel.style.display = 'block';
-        }
-    });
+    // Perbaikan: Hanya sembunyikan jika obat BENAR-BENAR ada di dbFlat
+document.getElementById('obat-search').addEventListener('input', function() {
+    const nama = this.value.trim().toLowerCase();
+    const bbInput = document.getElementById('bb');
+    const bbLabel = bbInput.previousElementSibling;
+    
+    // Cek apakah input cocok dengan salah satu obat di dbFlat
+    const isFlat = dbFlat.some(x => x["Nama Obat"] && x["Nama Obat"].trim().toLowerCase() === nama);
+    
+    if (isFlat) {
+        bbInput.style.display = 'none';
+        bbLabel.style.display = 'none';
+    } else {
+        // Tampilkan kembali jika bukan obat Flat (atau jika user menghapus input)
+        bbInput.style.display = 'block';
+        bbLabel.style.display = 'block';
+    }
+});
 
     Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
     Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
