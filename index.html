@@ -109,7 +109,7 @@
         const nama = document.getElementById('obat-search').value;
         const bb = parseFloat(document.getElementById('bb').value);
         const umur = parseFloat(document.getElementById('umur').value);
-        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
+        const o = db.find(x => x["Nama Obat"] === nama);
         
         if (!o || !bb) return alert("Lengkapi data!");
 
