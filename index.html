@@ -8,7 +8,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Kalkulator Dosis Anak Pintar</title>
+    <title>Kalkulator Dosis Anak</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -38,7 +38,7 @@
 
         <div class="card-header">
 
-            <h4 class="mb-0">Kalkulator Dosis Anak Pintar</h4>
+            <h4 class="mb-0">Kalkulator Dosis Anak</h4>
 
             <small>Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
 
@@ -83,66 +83,83 @@
 </div>
 
 
+
 <script>
+
     let db = [];
+
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
+
     
-    Papa.parse(url, {
-        download: true, 
-        header: true, 
-        complete: (res) => { 
-            db = res.data;
-            const list = document.getElementById('list-obat');
-            db.forEach(o => {
-                if(o["Nama Obat dengan Kekuatan Sediaan"]) {
-                    let opt = document.createElement('option'); 
-                    opt.value = o["Nama Obat dengan Kekuatan Sediaan"].trim(); 
-                    list.appendChild(opt);
-                }
-            });
-        }
-    });
+
+    Papa.parse(url, {download: true, header: true, complete: (res) => { db = res.data; populateList(); }});
+
+
+
+    function populateList() {
+
+        const list = document.getElementById('list-obat');
+
+        [...new Set(db.map(o => o["Nama Obat"]))].forEach(name => {
+
+            let opt = document.createElement('option'); opt.value = name; list.appendChild(opt);
+
+        });
+
+    }
+
+
 
     function hitung() {
-        const inputNama = document.getElementById('obat-search').value.trim();
+
+        const nama = document.getElementById('obat-search').value;
+
+        const bb = parseFloat(document.getElementById('bb').value);
+
+        const o = db.find(x => x["Nama Obat"] === nama);
+
+        if (!o || !bb) return alert("Lengkapi data!");
+
+
+
+        // Perhitungan Dosis Sekali Minum (mg)
+
+        const dMin = parseFloat(o["Dosis Min"]) * bb;
+
+        const dMak = parseFloat(o["Dosis Mak"]) * bb;
+
         
-        // PENCARIAN FLEKSIBEL: Mengabaikan huruf besar/kecil dan spasi
-        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"]?.trim().toLowerCase() === inputNama.toLowerCase());
-        
-        if (!o) {
-            alert("Obat tidak ditemukan. Pastikan Anda memilih dari daftar dropdown saat mengetik.");
-            return;
-        }
 
-        // AMBIL DATA DARI CSV
-        const bb = parseFloat(document.getElementById('bb')?.value) || 0;
-        const dMin = parseFloat(o["Dosis Min"] || 0);
-        const dMak = parseFloat(o["Dosis Mak"] || 0);
-        const jenis = o["Jenis Perhitungan"] || "";
+        // Konversi ke ml jika sediaan cair (Contoh sederhana: dosis/kekuatan)
 
-        // PERHITUNGAN
-        let min = dMin;
-        let mak = dMak;
-        if (jenis === "Per Hari - BB") {
-            min = dMin * (bb || 1);
-            mak = dMak * (bb || 1);
-        }
+        const vMin = (dMin / parseFloat(o["Kekuatan Sediaan"]) * parseFloat(o["Volume Sediaan"])).toFixed(1);
 
-        // TAMPILKAN
+        const vMak = (dMak / parseFloat(o["Kekuatan Sediaan"]) * parseFloat(o["Volume Sediaan"])).toFixed(1);
+
+
+
         document.getElementById('hasil').classList.remove('d-none');
+
         document.getElementById('hasil').innerHTML = `
-            <div class="result-box">
-                <h5>${o["Nama Obat"] || "-"}</h5>
-                <p><strong>Sediaan:</strong> ${o["Bentuk Sediaan"] || "-"} | ${o["Kekuatan Sediaan"] || "-"}</p>
-                <hr>
-                <p><strong>Dosis:</strong> <span class="text-success fs-3 fw-bold">${min.toFixed(0)} - ${mak.toFixed(0)} mg</span></p>
-                <div class="alert alert-info small">
-                    <strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}
-                </div>
-                <p class="small text-muted"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</p>
-            </div>
-        `;
+
+            <h5>📋 Hasil Validasi Klinis:</h5>
+
+            <p><strong>Aturan Frekuensi:</strong> ${o["Aturan Pakai"]}</p>
+
+            <p><strong>Jumlah Sekali Minum:</strong><br>
+
+            <span class="text-success fw-bold fs-3">${vMin} ml s/d ${vMak} ml</span></p>
+
+            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg sekali minum.</small>
+
+            <div class="bg-light p-3 mt-3 rounded">
+
+                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Apoteker"]}
+
+            </div>`;
+
     }
+
 </script>
 
 </body>
