@@ -96,9 +96,9 @@
             db = res.data; 
             const list = document.getElementById('list-obat');
             db.forEach(o => {
-                if(o["Nama Obat dengan Kekuatan Sediaan"]) {
+                if(o["Nama Obat"]) {
                     let opt = document.createElement('option'); 
-                    opt.value = o["Nama Obat dengan Kekuatan Sediaan"]; 
+                    opt.value = o["Nama Obat"]; 
                     list.appendChild(opt);
                 }
             });
@@ -108,7 +108,7 @@
     function hitung() {
         const nama = document.getElementById('obat-search').value;
         const bb = parseFloat(document.getElementById('bb').value);
-        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
+        const o = db.find(x => x["Nama Obat"] === nama);
         
         if (!o || !bb) return alert("Lengkapi data!");
 
