@@ -1,53 +1,5 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator Dosis Anak</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <style>
-        body { background-color: #f0f2f5; font-family: sans-serif; }
-        .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .card-header { background: #0d6efd; color: white; border-radius: 15px 15px 0 0 !important; text-align: center; padding: 20px; }
-        .btn-primary { background: #0d6efd; border: none; padding: 15px; font-weight: bold; }
-        .result-box { border-left: 5px solid #198754; background: #fff; padding: 20px; border-radius: 10px; }
-    </style>
-</head>
-<body class="p-3">
-<div class="container" style="max-width: 500px;">
-    <div class="card mt-4">
-        <div class="card-header">
-            <h4 class="mb-0">Kalkulator Dosis Anak</h4>
-            <small>Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
-        </div>
-        <div class="card-body p-4">
-            <label class="fw-bold mb-2">Ketik & Pilih Sediaan Obat</label>
-            <input type="text" id="obat-search" class="form-control mb-3" list="list-obat" placeholder="Ketik nama obat...">
-            <datalist id="list-obat"></datalist>
-
-            <label class="fw-bold mb-2">Berat Badan Pasien (kg)</label>
-            <input type="number" id="bb" class="form-control mb-3" placeholder="Contoh: 12.5">
-            
-            <div class="row">
-                <div class="col-8"><label class="fw-bold mb-2">Umur Pasien</label><input type="number" id="umur" class="form-control mb-3"></div>
-            <div class="col-4">
-    <label>&nbsp;</label>
-    <select id="umur-satuan" class="form-select">
-        <option value="tahun">Tahun</option>
-        <option value="bulan">Bulan</option>
-    </select>
-    </div>
-
-            <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi Dosis</button>
-        </div>
-    </div>
-    <div id="hasil" class="mt-4 d-none result-box shadow-sm"></div>
-</div>
-
 <script>
     let db = [];
-    // URL CSV terbaru dari Anda
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
     
     Papa.parse(url, {
@@ -64,74 +16,64 @@
         }
     });
 
+    // FITUR OTOMATIS: Sembunyikan kolom BB jika obat tipe Flat
+    document.getElementById('obat-search').addEventListener('input', function() {
+        const o = db.find(x => x["Nama Obat"] === this.value);
+        const bbInput = document.getElementById('bb');
+        const bbLabel = bbInput.previousElementSibling;
+        
+        if (o && o["Jenis Perhitungan"] === "Flat - Umur") {
+            bbInput.style.display = 'none';
+            bbLabel.style.display = 'none';
+        } else {
+            bbInput.style.display = 'block';
+            bbLabel.style.display = 'block';
+        }
+    });
+
     function hitung() {
         const nama = document.getElementById('obat-search').value;
         const o = db.find(x => x["Nama Obat"] === nama);
         if (!o) return alert("Obat tidak ditemukan!");
-	if (o && o["Jenis Perhitungan"] === "Flat - Umur") {
-            jalurDosisFlat(o); 
+
+        // JALUR FLAT
+        if (o["Jenis Perhitungan"] === "Flat - Umur") {
+            jalurDosisFlat(o);
             return;
         }
+
+        // JALUR BB
         const bb = parseFloat(document.getElementById('bb').value);
         const umur = parseFloat(document.getElementById('umur').value);
-                
-        if (!bb || isNaN(umur)) return alert("Lengkapi data dengan benar!");
+        if (!bb || isNaN(umur)) return alert("Lengkapi data Berat Badan dan Umur!");
 
-        // 1. Hitung dosis mg berdasarkan BB
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
+        const manualMaks = parseFloat(o["Maks Sekali Minum"]);
         
-        // 2. Ambil batas dari Sheet
-        const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
-        let batasPerKali = (!isNaN(manualMaksSekali) && manualMaksSekali > 0) ? manualMaksSekali : null;
-
-        // 3. LOGIKA PEMOTONGAN (KUNCI PERBAIKAN)
-        // Kita terapkan pemotongan langsung pada dMak
-        if (batasPerKali !== null) {
-            if (dMak > batasPerKali) {
-                dMak = batasPerKali;
-            }
-        }
-        
-        // Pastikan dMin tidak melebihi batas baru
+        if (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) dMak = manualMaks;
         if (dMin > dMak) dMin = dMak;
 
-        // 4. Konversi ke ml atau tablet
         const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
         const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
         const volume = parseFloat(o["Volume Sediaan"] || 1);
         
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
-        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan); // hMak sekarang memakai dMak yang sudah dipotong!
+        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
         const satuan = isCair ? "ml" : "tab";
 
-        // Tampilkan
-        document.getElementById('hasil').classList.remove('d-none');
-        document.getElementById('hasil').innerHTML = `
-            <h5>📋 Hasil Validasi Klinis:</h5>
-            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
-            <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p>
-            <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
-            <p class="small text-muted">
-                ${batasPerKali !== null 
-                  ? '*Dosis telah dibatasi maksimal ' + batasPerKali + ' mg per kali pakai.' 
-                  : '*Dosis dihitung berdasarkan berat badan pasien.'}
-            </p>
-            <div class="bg-light p-3 rounded">
-                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
-                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
-            </div>`;
+        tampilkanHasilBB(o, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuan);
     }
-function jalurDosisFlat(o) {
+
+    function jalurDosisFlat(o) {
         const umurInput = parseFloat(document.getElementById('umur').value);
         const satuan = document.getElementById('umur-satuan').value;
         const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
         
-        // Sesuaikan kategori ini dengan kolom "Umur / Kondisi" di Google Sheet Anda
-        let kat = (bulan < 6) ? "Bayi <6 bulan" : (bulan < 24) ? "Anak <2 tahun" : (bulan <= 72) ? "Anak 2-6 tahun" : "Anak 6-12 tahun";
+        let kat = (bulan < 6) ? "Bayi <6 bulan" : (bulan < 24) ? "Anak <2 tahun" : (bulan <= 72) ? "Anak 2-6 tahun" : (bulan <= 144) ? "Anak 6-12 tahun" : "Anak >12 tahun";
         
         const data = db.find(x => x["Nama Obat"] === o["Nama Obat"] && x["Umur / Kondisi"] === kat);
-        if (!data) return alert("Data dosis untuk kategori umur ini tidak ditemukan!");
+        if (!data) return alert("Data dosis untuk kategori: " + kat + " tidak ditemukan!");
         
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
@@ -143,6 +85,18 @@ function jalurDosisFlat(o) {
                 <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
             </div>`;
     }
+
+    function tampilkanHasilBB(o, hMin, hMak, dMin, dMak, batasPerKali, satuan) {
+        document.getElementById('hasil').classList.remove('d-none');
+        document.getElementById('hasil').innerHTML = `
+            <h5>📋 Hasil Validasi Klinis:</h5>
+            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+            <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p>
+            <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
+            <p class="small text-muted">${batasPerKali ? '*Dosis telah dibatasi maksimal ' + batasPerKali + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
+            <div class="bg-light p-3 rounded">
+                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
+            </div>`;
+    }
 </script>
-</body>
-</html>
