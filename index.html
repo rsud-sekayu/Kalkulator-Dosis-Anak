@@ -117,17 +117,29 @@
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
 
-        // 2. Tentukan Batas Harian berdasarkan Usia
-        const dMaxHari = (umur < 12) ? parseFloat(o["Maks Dosis Anak Hari"] || 2600) : parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
-        const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
-        
-        // 3. Tentukan Batas Sekali Minum dengan pengecekan ekstra
+        // 2. Tentukan Batas Harian secara Universal dari database
+// Jika kolom di sheet kosong, gunakan null agar sistem tahu bahwa data tidak tersedia
+const dMaxHari = (umur < 12) 
+    ? parseFloat(o["Maks Dosis Anak Hari"]) 
+    : parseFloat(o["Maks Dosis Dewasa Hari"]);
+
+const frekuensi = parseFloat(o["Frekuensi per Hari"]) || 4; 
+
+// 3. Tentukan Batas Sekali Pakai (Universal)
 const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
 
-// Pengecekan: Gunakan manualMaksSekali HANYA jika nilainya adalah angka yang valid (bukan NaN)
-const batasPerKali = (!isNaN(manualMaksSekali) && manualMaksSekali > 0) 
-                     ? manualMaksSekali 
-                     : (dMaxHari / frekuensi);
+// Jika dMaxHari tidak ada di database, kita tidak boleh asal tebak 2600/4000.
+// Kita gunakan logika: jika dMaxHari valid, gunakan (dMaxHari / frekuensi), 
+// jika tidak ada, maka batasnya hanya bergantung pada manualMaksSekali.
+let batasPerKali;
+
+if (!isNaN(manualMaksSekali) && manualMaksSekali > 0) {
+    // Jika ada batas manual, bandingkan dengan batas harian (jika dMaxHari tersedia)
+    batasPerKali = !isNaN(dMaxHari) ? Math.min(manualMaksSekali, dMaxHari / frekuensi) : manualMaksSekali;
+} else {
+    // Jika tidak ada batas manual, gunakan batas harian yang ada
+    batasPerKali = dMaxHari / frekuensi;
+}
 
         // 4. Terapkan Validasi (Lapis Ganda)
         if (dMak > batasPerKali) {
