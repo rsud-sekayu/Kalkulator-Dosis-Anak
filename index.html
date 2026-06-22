@@ -66,6 +66,22 @@
         });
     }
 
+    // Event Listener untuk menyembunyikan BB otomatis
+    document.getElementById('obat-search').addEventListener('input', function() {
+        const nama = this.value.trim();
+        const bbInput = document.getElementById('bb');
+        const bbLabel = bbInput.previousElementSibling;
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+        
+        if (oFlat) {
+            bbInput.style.display = 'none';
+            bbLabel.style.display = 'none';
+        } else {
+            bbInput.style.display = 'block';
+            bbLabel.style.display = 'block';
+        }
+    });
+
     Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
     Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
 
