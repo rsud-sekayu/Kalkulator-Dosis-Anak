@@ -46,18 +46,18 @@
 </div>
 
 <script>
-    let dbBB = [];   // Untuk Data BB
-    let dbFlat = []; // Untuk Data Flat
+    let dbBB = [];
+    let dbFlat = [];
     
     const urlBB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=957732586&single=true&output=csv";
     const urlFlat = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=944311413&single=true&output=csv";
     
-    Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
-    Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
-
+    // Fungsi untuk mengisi datalist setelah data dimuat
     function populateList() {
         const list = document.getElementById('list-obat');
-        [...dbBB, ...dbFlat].forEach(o => {
+        list.innerHTML = ""; // Bersihkan list dulu
+        const allObat = [...dbBB, ...dbFlat];
+        allObat.forEach(o => {
             if(o["Nama Obat"]) {
                 let opt = document.createElement('option'); 
                 opt.value = o["Nama Obat"]; 
@@ -66,18 +66,18 @@
         });
     }
 
-    // FUNGSI HITUNG (Pusat logika)
+    Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
+    Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
+
     function hitung() {
         const nama = document.getElementById('obat-search').value.trim();
         
-        // 1. Cek dulu apakah obat ini ada di database Flat
         const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
         if (oFlat) {
             jalurDosisFlat(oFlat);
             return;
         }
 
-        // 2. Jika tidak ada, jalankan logika BB asli Anda
         const oBB = dbBB.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
         if (!oBB) return alert("Obat tidak ditemukan!");
         
@@ -93,26 +93,22 @@
         if (dMin > dMak) dMin = dMak;
 
         const bentuk = oBB["Bentuk Sediaan"] ? oBB["Bentuk Sediaan"].toLowerCase() : "";
-    const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
-    const volume = parseFloat(oBB["Volume Sediaan"] || 1);
+        const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
+        const volume = parseFloat(oBB["Volume Sediaan"] || 1);
 
-    const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
-                   bentuk.includes("injeksi") || bentuk.includes("rektal");
+        const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
+                       bentuk.includes("injeksi") || bentuk.includes("rektal");
 
-    let satuan = "tab"; // default
-    if (isCair) {
-        satuan = "ml";
-    }
-    // Jika rektal/tube, kita override satuannya agar lebih jelas
-    if (bentuk.includes("rektal") || bentuk.includes("tube")) {
-        satuan = "ml (dalam tube)";
-    }
+        // Logika satuan diperbaiki agar tidak double deklarasi
+        let satuanFinal = isCair ? "ml" : "tab";
+        if (bentuk.includes("rektal") || bentuk.includes("tube")) {
+            satuanFinal = "ml (dalam tube)";
+        }
         
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
         const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
-        const satuan = isCair ? "ml" : "tab";
 
-        tampilkanHasilBB(oBB, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuan);
+        tampilkanHasilBB(oBB, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuanFinal);
     }
 
     // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
