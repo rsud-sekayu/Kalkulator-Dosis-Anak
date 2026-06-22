@@ -83,7 +83,6 @@
 </div>
 
 
-
 <script>
     let db = [];
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
@@ -92,14 +91,12 @@
         download: true, 
         header: true, 
         complete: (res) => { 
-            db = res.data; 
+            db = res.data;
             const list = document.getElementById('list-obat');
-            // Menampilkan daftar obat berdasarkan nama kolom asli di CSV Anda
             db.forEach(o => {
-                let nama = o["Nama Obat dengan Kekuatan Sediaan"];
-                if(nama) {
+                if(o["Nama Obat dengan Kekuatan Sediaan"]) {
                     let opt = document.createElement('option'); 
-                    opt.value = nama; 
+                    opt.value = o["Nama Obat dengan Kekuatan Sediaan"].trim(); 
                     list.appendChild(opt);
                 }
             });
@@ -107,38 +104,38 @@
     });
 
     function hitung() {
-        const namaInput = document.getElementById('obat-search').value;
-        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === namaInput);
+        const inputNama = document.getElementById('obat-search').value.trim();
         
-        if (!o) return alert("Pilih obat dari daftar!");
-
-        // Ambil nilai BB (jika ada)
-        const bb = parseFloat(document.getElementById('bb')?.value) || 0;
+        // PENCARIAN FLEKSIBEL: Mengabaikan huruf besar/kecil dan spasi
+        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"]?.trim().toLowerCase() === inputNama.toLowerCase());
         
-        // Logika Perhitungan (Membedakan Flat vs BB)
-        let dosisMin = parseFloat(o["Dosis Min"] || 0);
-        let dosisMak = parseFloat(o["Dosis Mak"] || 0);
-        let hasilMin, hasilMak;
-
-        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
-            hasilMin = dosisMin * bb;
-            hasilMak = dosisMak * bb;
-        } else {
-            // Flat - Umur: Menggunakan nilai dosis tunggal dari database
-            hasilMin = dosisMin;
-            hasilMak = dosisMak;
+        if (!o) {
+            alert("Obat tidak ditemukan. Pastikan Anda memilih dari daftar dropdown saat mengetik.");
+            return;
         }
 
-        // Tampilkan Hasil
+        // AMBIL DATA DARI CSV
+        const bb = parseFloat(document.getElementById('bb')?.value) || 0;
+        const dMin = parseFloat(o["Dosis Min"] || 0);
+        const dMak = parseFloat(o["Dosis Mak"] || 0);
+        const jenis = o["Jenis Perhitungan"] || "";
+
+        // PERHITUNGAN
+        let min = dMin;
+        let mak = dMak;
+        if (jenis === "Per Hari - BB") {
+            min = dMin * (bb || 1);
+            mak = dMak * (bb || 1);
+        }
+
+        // TAMPILKAN
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <div class="result-box">
                 <h5>${o["Nama Obat"] || "-"}</h5>
                 <p><strong>Sediaan:</strong> ${o["Bentuk Sediaan"] || "-"} | ${o["Kekuatan Sediaan"] || "-"}</p>
                 <hr>
-                <p><strong>Dosis Sekali Minum:</strong><br>
-                <span class="text-success fs-3 fw-bold">${hasilMin.toFixed(0)} - ${hasilMak.toFixed(0)} mg</span></p>
-                <p><strong>Aturan Pakai:</strong><br>${o["Aturan Pakai"] || "Tiap 4-6 jam jika demam"}</p>
+                <p><strong>Dosis:</strong> <span class="text-success fs-3 fw-bold">${min.toFixed(0)} - ${mak.toFixed(0)} mg</span></p>
                 <div class="alert alert-info small">
                     <strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}
                 </div>
