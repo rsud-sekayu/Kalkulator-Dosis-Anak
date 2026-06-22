@@ -25,7 +25,10 @@
             <input type="text" id="obat-search" class="form-control mb-3" list="list-obat" placeholder="Ketik nama obat...">
             <datalist id="list-obat"></datalist>
 
-            <div id="input-container"></div> <div id="opsi-container" class="mb-3"></div> <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi</button>
+            <div id="dynamic-inputs"></div>
+            <div id="opsi-indikasi-container" class="mb-3"></div>
+            
+            <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi</button>
         </div>
     </div>
     <div id="hasil" class="d-none result-box shadow-sm"></div>
@@ -44,29 +47,21 @@
         });
     }
 
-    // Deteksi otomatis inputan berdasarkan jenis dosis
     document.getElementById('obat-search').addEventListener('input', function() {
-        const obat = db.find(x => x["Nama Obat"] === this.value);
-        if (!obat) return;
-
-        const cont = document.getElementById('input-container');
-        // Tampilkan BB jika "Dosis Min" ada, Tampilkan Umur jika dosis flat
-        if (obat["Dosis Min"]) {
-            cont.innerHTML = `<label class="fw-bold mb-2">Berat Badan (kg)</label><input type="number" id="bb" class="form-control mb-3">`;
-        } else {
-            cont.innerHTML = `<label class="fw-bold mb-2">Umur</label><div class="input-group mb-3"><input type="number" id="umur" class="form-control"><select class="form-select" id="satuan-umur"><option value="th">Tahun</option><option value="bln">Bulan</option></select></div>`;
-        }
-
-        // Tampilkan opsi indikasi jika ada lebih dari 1 baris nama obat sama
         const matches = db.filter(x => x["Nama Obat"] === this.value);
-        const ops = document.getElementById('opsi-container');
-        ops.innerHTML = "";
-        if (matches.length > 1) {
-            let select = `<label class="fw-bold mb-2">Indikasi/Varian</label><select id="opsi-indikasi" class="form-select">`;
-            matches.forEach((m, i) => select += `<option value="${i}">${m["Indikasi"] || m["Nama Obat"]}</option>`);
-            select += `</select>`;
-            ops.innerHTML = select;
-        }
+        if (matches.length === 0) return;
+
+        // Tampilkan Input Dinamis (BB atau Umur)
+        const container = document.getElementById('dynamic-inputs');
+        const hasBB = matches.some(m => m["Dosis Min"]);
+        container.innerHTML = hasBB ? 
+            `<label class="fw-bold mb-2">Berat Badan (kg)</label><input type="number" id="bb" class="form-control mb-3" step="0.1">` :
+            `<label class="fw-bold mb-2">Umur</label><div class="input-group mb-3"><input type="number" id="umur" class="form-control"><select class="form-select" id="satuan-umur"><option value="th">Tahun</option><option value="bln">Bulan</option></select></div>`;
+
+        // Tampilkan Opsi Indikasi jika banyak
+        const optCont = document.getElementById('opsi-indikasi-container');
+        optCont.innerHTML = matches.length > 1 ? 
+            `<label class="fw-bold mb-2">Pilih Indikasi/Sediaan</label><select id="opsi-indikasi" class="form-select">${matches.map((m, i) => `<option value="${i}">${m["Indikasi"] || m["Nama Obat"]}</option>`).join('')}</select>` : "";
     });
 
     function hitung() {
@@ -75,29 +70,38 @@
         const idx = sel ? sel.value : 0;
         const o = db.filter(x => x["Nama Obat"] === nama)[idx];
         
-        const bb = document.getElementById('bb') ? parseFloat(document.getElementById('bb').value) : 0;
-        if (!o || (document.getElementById('bb') && !bb)) return alert("Isi data dengan lengkap!");
+        if (!o) return alert("Pilih obat!");
 
-        const dMin = parseFloat(o["Dosis Min"]) * (bb || 1);
-        const dMak = parseFloat(o["Dosis Mak"]) * (bb || 1);
-        
-        // Logika konversi cair (mg/ml)
+        // Hitung Dosis
+        let dMin, dMak;
+        if (o["Dosis Min"]) {
+            const bb = parseFloat(document.getElementById('bb').value);
+            dMin = parseFloat(o["Dosis Min"]) * bb;
+            dMak = parseFloat(o["Dosis Mak"]) * bb;
+        } else {
+            dMin = parseFloat(o["Dosis Min"]); // Mengambil nilai flat
+            dMak = parseFloat(o["Dosis Mak"]);
+        }
+
+        // Hitung Volume jika cair
+        let hasilTeks = "";
         const kek = o["Kekuatan Sediaan"] || "";
-        let hasilDosis = `${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg`;
-        if (kek.includes("ml")) {
-            const mg = parseFloat(kek.split(" ")[0]);
+        if (kek.toLowerCase().includes("ml")) {
+            const mg = parseFloat(kek);
             const ml = parseFloat(kek.split("/")[1]);
-            hasilDosis = `${(dMin/mg*ml).toFixed(1)} - ${(dMak/mg*ml).toFixed(1)} ml`;
+            hasilTeks = `<span class="text-success fs-3 fw-bold">${(dMin/mg*ml).toFixed(1)} - ${(dMak/mg*ml).toFixed(1)} ml</span>`;
+        } else {
+            hasilTeks = `<span class="text-success fs-3 fw-bold">${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg</span>`;
         }
 
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <h5>${o["Nama Obat"]}</h5>
             <p>${o["Bentuk Sediaan"]} - ${o["Kekuatan Sediaan"]}</p>
-            <p><strong>Dosis:</strong> <span class="text-success fs-3">${hasilDosis}</span></p>
-            <p><strong>Aturan:</strong> ${o["Aturan Pakai"] || "tiap 4-6 jam jika demam"}</p>
-            <div class="small bg-light p-2 mt-2"><strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}</div>
-            <div class="small mt-2"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</div>`;
+            <p><strong>Dosis:</strong> ${hasilTeks}</p>
+            <p><strong>Aturan:</strong> ${o["Aturan Pakai"]}</p>
+            <div class="alert alert-secondary"><strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}</div>
+            <div class="small"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</div>`;
     }
 </script>
 </body>
