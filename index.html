@@ -108,31 +108,30 @@
     function hitung() {
         const nama = document.getElementById('obat-search').value;
         const bb = parseFloat(document.getElementById('bb').value);
-        const o = db.find(x => x["Nama Obat"] === nama);
+        const umur = parseFloat(document.getElementById('umur').value);
+        const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === nama);
         
         if (!o || !bb) return alert("Lengkapi data!");
 
-        // 1. Hitung dosis berdasarkan BB
+        // 1. Hitung dosis dasar berdasarkan BB
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
 
-        // 2. Pembatasan Otomatis (Double-Lock Validation)
-let dMaxHari;
-const umur = parseFloat(document.getElementById('umur').value);
+        // 2. Tentukan Batas Harian berdasarkan Usia
+        const dMaxHari = (umur < 12) ? parseFloat(o["Maks Dosis Anak Hari"] || 2600) : parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
+        const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
+        
+        // 3. Tentukan Batas Sekali Minum (Prioritas: Kolom Manual, jika kosong -> Otomatis Hitung)
+        const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
+        const batasPerKali = manualMaksSekali ? manualMaksSekali : (dMaxHari / frekuensi);
 
-// Logika batasan berdasarkan usia
-if (umur < 12) {
-    // Gunakan 2600 mg (2.6 gram) untuk anak < 12 tahun
-    dMaxHari = parseFloat(o["Maks Dosis Anak Hari"] || 2600); 
-} else {
-    // Gunakan 4000 mg (4 gram) untuk dewasa/anak >= 12 tahun
-    dMaxHari = parseFloat(o["Maks Dosis Dewasa Hari"] || 4000);
-}
+        // 4. Terapkan Validasi (Lapis Ganda)
+        if (dMak > batasPerKali) {
+            dMak = batasPerKali;
+        }
+        if (dMin > dMak) dMin = dMak;
 
-const frekuensi = parseFloat(o["Frekuensi per Hari"] || 4);
-const batasPerKali = dMaxHari / frekuensi;
-
-        // 3. Konversi ke ml atau tablet
+        // 5. Konversi ke ml atau tablet
         const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
         const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
         const volume = parseFloat(o["Volume Sediaan"] || 1);
@@ -140,23 +139,19 @@ const batasPerKali = dMaxHari / frekuensi;
         const hasilMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
         const hasilMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
         const satuan = isCair ? "ml" : "tab";
-        
-        // PENTING: Definisi variabel yang tadi hilang
-        const teksHasil = `${hasilMin.toFixed(1)} - ${hasilMak.toFixed(1)} ${satuan}`;
 
-        // Tampilkan hasil
+        // 6. Tampilkan hasil
         document.getElementById('hasil').classList.remove('d-none');
-        document.getElementById('hasil').innerHTML = `
-            <h5>📋 Hasil Validasi Klinis:</h5>
-            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
-            <p><strong>Dosis Sekali Minum:</strong><br>
-            <span class="text-success fw-bold fs-3">${teksHasil}</span></p>
-            <small>Zat aktif aktual: ${dMin.toFixed(0)} mg - ${dMak.toFixed(0)} mg.</small>
-            <p class="small text-danger">*Dosis dibatasi otomatis agar tidak melebihi ${dMaxHari} mg per hari.</p>
-            <div class="bg-light p-3 rounded">
-                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
-                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
-            </div>`;
+document.getElementById('hasil').innerHTML = `
+    <h5>📋 Hasil Validasi Klinis:</h5>
+    <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+    <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${hasilMin.toFixed(1)} - ${hasilMak.toFixed(1)} ${satuan}</span></p>
+    <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
+    <p class="small text-danger">*Dosis dibatasi otomatis agar tidak melebihi ${dMaxHari} mg/hari.</p>
+    <div class="bg-light p-3 rounded">
+        <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+        <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
+    </div>`;
     }
 </script>
 
