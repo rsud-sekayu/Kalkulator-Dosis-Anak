@@ -1,3 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Dosis Anak</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { background-color: #f0f2f5; font-family: sans-serif; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .card-header { background: #0d6efd; color: white; border-radius: 15px 15px 0 0 !important; text-align: center; padding: 20px; }
+        .btn-primary { background: #0d6efd; border: none; padding: 15px; font-weight: bold; }
+        .result-box { border-left: 5px solid #198754; background: #fff; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-3">
+<div class="container" style="max-width: 500px;">
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4 class="mb-0">Kalkulator Dosis Anak</h4>
+            <small>Sistem Validasi Klinis Terintegrasi RSUD Sekayu</small>
+        </div>
+        <div class="card-body p-4">
+            <label class="fw-bold mb-2">Ketik & Pilih Sediaan Obat</label>
+            <input type="text" id="obat-search" class="form-control mb-3" list="list-obat" placeholder="Ketik nama obat...">
+            <datalist id="list-obat"></datalist>
+
+            <label class="fw-bold mb-2">Berat Badan Pasien (kg)</label>
+            <input type="number" id="bb" class="form-control mb-3" placeholder="Contoh: 12.5">
+            
+            <div class="row">
+                <div class="col-8"><label class="fw-bold mb-2">Umur Pasien</label><input type="number" id="umur" class="form-control mb-3"></div>
+            <div class="col-4">
+    <label>&nbsp;</label>
+    <select id="umur-satuan" class="form-select">
+        <option value="tahun">Tahun</option>
+        <option value="bulan">Bulan</option>
+    </select>
+    </div>
+
+            <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi Dosis</button>
+        </div>
+    </div>
+    <div id="hasil" class="mt-4 d-none result-box shadow-sm"></div>
+</div>
+
 <script>
     let db = [];
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
@@ -100,3 +147,5 @@
             </div>`;
     }
 </script>
+</body>
+</html> 
