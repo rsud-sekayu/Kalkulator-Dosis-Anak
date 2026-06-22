@@ -94,9 +94,9 @@
         complete: (res) => { 
             db = res.data; 
             const list = document.getElementById('list-obat');
-            // Menampilkan daftar obat berdasarkan kolom yang benar di CSV Anda
+            // Menampilkan daftar obat berdasarkan nama kolom asli di CSV Anda
             db.forEach(o => {
-                const nama = o["Nama Obat dengan Kekuatan Sediaan"];
+                let nama = o["Nama Obat dengan Kekuatan Sediaan"];
                 if(nama) {
                     let opt = document.createElement('option'); 
                     opt.value = nama; 
@@ -110,35 +110,35 @@
         const namaInput = document.getElementById('obat-search').value;
         const o = db.find(x => x["Nama Obat dengan Kekuatan Sediaan"] === namaInput);
         
-        if (!o) {
-            alert("Obat tidak ditemukan. Pilih dari daftar!");
-            return;
-        }
+        if (!o) return alert("Pilih obat dari daftar!");
 
-        // AMBIL DATA DARI KOLOM YANG TEPAT (sesuai CSV Anda)
-        const bentukSediaan = o["Bentuk Sediaan"] || "-";
-        const kekuatan = o["Kekuatan Sediaan"] || "-";
+        // Ambil nilai BB (jika ada)
         const bb = parseFloat(document.getElementById('bb')?.value) || 0;
         
-        // Perhitungan Dosis
-        const dMin = parseFloat(o["Dosis Min"] || 0);
-        const dMak = parseFloat(o["Dosis Mak"] || 0);
-        const hitungBB = (o["Jenis Perhitungan"] === "Per Hari - BB");
-        
-        const hasilMin = hitungBB ? (dMin * bb) : dMin;
-        const hasilMak = hitungBB ? (dMak * bb) : dMak;
+        // Logika Perhitungan (Membedakan Flat vs BB)
+        let dosisMin = parseFloat(o["Dosis Min"] || 0);
+        let dosisMak = parseFloat(o["Dosis Mak"] || 0);
+        let hasilMin, hasilMak;
 
+        if (o["Jenis Perhitungan"] === "Per Hari - BB") {
+            hasilMin = dosisMin * bb;
+            hasilMak = dosisMak * bb;
+        } else {
+            // Flat - Umur: Menggunakan nilai dosis tunggal dari database
+            hasilMin = dosisMin;
+            hasilMak = dosisMak;
+        }
+
+        // Tampilkan Hasil
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <div class="result-box">
                 <h5>${o["Nama Obat"] || "-"}</h5>
-                <p><strong>Sediaan:</strong> ${bentukSediaan} | ${kekuatan}</p>
+                <p><strong>Sediaan:</strong> ${o["Bentuk Sediaan"] || "-"} | ${o["Kekuatan Sediaan"] || "-"}</p>
                 <hr>
                 <p><strong>Dosis Sekali Minum:</strong><br>
                 <span class="text-success fs-3 fw-bold">${hasilMin.toFixed(0)} - ${hasilMak.toFixed(0)} mg</span></p>
-                
                 <p><strong>Aturan Pakai:</strong><br>${o["Aturan Pakai"] || "Tiap 4-6 jam jika demam"}</p>
-                
                 <div class="alert alert-info small">
                     <strong>Catatan:</strong> ${o["Catatan Klinis"] || "-"}
                 </div>
