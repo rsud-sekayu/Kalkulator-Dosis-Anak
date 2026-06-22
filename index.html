@@ -117,18 +117,36 @@
         const satuan = document.getElementById('umur-satuan').value;
         const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
         
-        let kat = (bulan < 6) ? "Bayi <6 bulan" : (bulan < 24) ? "Anak <2 tahun" : (bulan <= 72) ? "Anak 2-6 tahun" : (bulan <= 144) ? "Anak 6-12 tahun" : "Anak >12 tahun";
+        let kat = "";
+
+        // 1. Cek "Semua Umur" (Untuk Asam Folat)
+        if (o["Umur / Kondisi"] === "Semua Umur") {
+            kat = "Semua Umur";
+        }
+        // 2. Cek Zinc (Khusus kategori <6 bulan dan >=6 bulan)
+        else if (o["Nama Obat"].toLowerCase().includes("zinc")) {
+            kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
+        }
+        // 3. Cek Obat Lainnya (Ambroxol, Mucos, dll)
+        else {
+            if (bulan < 24) kat = "Anak <2 tahun";
+            else if (bulan < 72) kat = "Anak 2-6 tahun";
+            else if (bulan <= 144) kat = "Anak 6-12 tahun";
+            else kat = "Anak >12 tahun"; // Umur > 144 bulan (12 tahun) masuk sini
+        }
         
+        // Cari data yang namanya SAMA PERSIS dan kategorinya SAMA PERSIS
         const data = db.find(x => x["Nama Obat"] === o["Nama Obat"] && x["Umur / Kondisi"] === kat);
-        if (!data) return alert("Data dosis untuk kategori: " + kat + " tidak ditemukan!");
+        
+        if (!data) return alert("Data untuk kategori: " + kat + " tidak ditemukan di sheet.");
         
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
             <h5>📋 Hasil Validasi Klinis:</h5>
-            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+            <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
             <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${data["Dosis Sekali (ml / tab)"]}</span></p>
             <div class="bg-light p-3 rounded mt-2">
-                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+                <strong>💡 Catatan Apoteker:</strong><br>${data["Catatan Klinis"]}
                 <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
             </div>`;
     }
