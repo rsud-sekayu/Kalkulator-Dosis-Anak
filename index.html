@@ -113,43 +113,42 @@
     }
 
     function jalurDosisFlat(o) {
-        const umurInput = parseFloat(document.getElementById('umur').value);
-        const satuan = document.getElementById('umur-satuan').value;
-        const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
-        
-        let kat = "";
-
-        // 1. Cek "Semua Umur" (Untuk Asam Folat)
-        if (o["Umur / Kondisi"] === "Semua Umur") {
-            kat = "Semua Umur";
-        }
-        // 2. Cek Zinc (Khusus kategori <6 bulan dan >=6 bulan)
-        else if (o["Nama Obat"].toLowerCase().includes("zinc")) {
-            kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
-        }
-        // 3. Cek Obat Lainnya (Ambroxol, Mucos, dll)
-        else {
-            if (bulan < 24) kat = "Anak <2 tahun";
-            else if (bulan < 72) kat = "Anak 2-6 tahun";
-            else if (bulan <= 144) kat = "Anak 6-12 tahun";
-            else kat = "Anak >12 tahun"; // Umur > 144 bulan (12 tahun) masuk sini
-        }
-        
-        // Cari data yang namanya SAMA PERSIS dan kategorinya SAMA PERSIS
-        const data = db.find(x => x["Nama Obat"] === o["Nama Obat"] && x["Umur / Kondisi"] === kat);
-        
-        if (!data) return alert("Data untuk kategori: " + kat + " tidak ditemukan di sheet.");
-        
-        document.getElementById('hasil').classList.remove('d-none');
-        document.getElementById('hasil').innerHTML = `
-            <h5>📋 Hasil Validasi Klinis:</h5>
-            <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
-            <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${data["Dosis Sekali (ml / tab)"]}</span></p>
-            <div class="bg-light p-3 rounded mt-2">
-                <strong>💡 Catatan Apoteker:</strong><br>${data["Catatan Klinis"]}
-                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
-            </div>`;
+    const umurInput = parseFloat(document.getElementById('umur').value);
+    const satuan = document.getElementById('umur-satuan').value;
+    const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
+    
+    let kat = "";
+    if (o["Umur / Kondisi"] === "Semua Umur") kat = "Semua Umur";
+    else if (o["Nama Obat"].toLowerCase().includes("zinc")) {
+        kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
+    } else {
+        if (bulan < 24) kat = "Anak <2 tahun";
+        else if (bulan < 72) kat = "Anak 2-6 tahun";
+        else if (bulan <= 144) kat = "Anak 6-12 tahun";
+        else kat = "Anak >12 tahun";
     }
+    
+    // Cari dengan mengabaikan spasi berlebih di awal/akhir dan huruf besar/kecil
+    const data = db.find(x => 
+        x["Nama Obat"].trim().toLowerCase() === o["Nama Obat"].trim().toLowerCase() && 
+        x["Umur / Kondisi"].trim().toLowerCase() === kat.trim().toLowerCase()
+    );
+    
+    if (!data) {
+        alert("Data tidak ditemukan! Debug: Obat='" + o["Nama Obat"] + "', Kategori='" + kat + "'");
+        return;
+    }
+    
+    // Tampilkan hasil
+    document.getElementById('hasil').classList.remove('d-none');
+    document.getElementById('hasil').innerHTML = `
+        <h5>📋 Hasil Validasi Klinis:</h5>
+        <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
+        <p><strong>Dosis:</strong> <span class="text-success fw-bold fs-3">${data["Dosis Sekali Minum"]}</span></p>
+        <div class="bg-light p-3 rounded mt-2">
+            <strong>💡 Catatan:</strong> ${data["Catatan Klinis"]}
+        </div>`;
+}
 
     function tampilkanHasilBB(o, hMin, hMak, dMin, dMak, batasPerKali, satuan) {
         document.getElementById('hasil').classList.remove('d-none');
