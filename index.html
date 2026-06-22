@@ -95,17 +95,21 @@
 <script>
     let dbBB = [];
     let dbFlat = [];
-    
+    let loadedBB = false;
+    let loadedFlat = false;
+
+    // URL DATABASE ANDA (Sudah dimasukkan di sini)
     const urlBB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=957732586&single=true&output=csv";
     const urlFlat = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=944311413&single=true&output=csv";
-    
+
+    // FUNGSI UNTUK MENAMPILKAN LIST (Dipanggil hanya saat data lengkap)
     function populateList() {
         const list = document.getElementById('list-obat');
-        // Gunakan Set untuk memastikan nama obat unik
+        list.innerHTML = ""; 
         const allObat = [...dbBB, ...dbFlat];
+        // Menghilangkan duplikat jika ada
         const uniqueNames = [...new Set(allObat.map(o => o["Nama Obat"]).filter(n => n))];
         
-        list.innerHTML = ""; 
         uniqueNames.forEach(name => {
             let opt = document.createElement('option'); 
             opt.value = name; 
@@ -113,13 +117,13 @@
         });
     }
 
-    // Event Listener untuk mengatur tampilan kolom BB
+    // FUNGSI UNTUK MENGATUR TAMPILAN KOLOM BB
     document.getElementById('obat-search').addEventListener('input', function() {
         const nama = this.value.trim();
         const bbInput = document.getElementById('bb');
         const bbLabel = bbInput.previousElementSibling;
         
-        // Cek apakah obat yang diketik ada di dbFlat
+        // Cek apakah obat ada di database Flat
         const isFlat = dbFlat.some(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
         
         if (isFlat) {
@@ -131,11 +135,28 @@
         }
     });
 
-    Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
-    Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
-    function hitung() {
+    // EKSEKUSI PAPAPARSE (Download data)
+    Papa.parse(urlBB, { 
+        download: true, header: true, 
+        complete: (res) => { 
+            dbBB = res.data; 
+            loadedBB = true; 
+            if (loadedFlat) populateList(); // Tunggu Flat selesai
+        } 
+    });
 
-        const nama = document.getElementById('obat-search').value.trim();
+    Papa.parse(urlFlat, { 
+        download: true, header: true, 
+        complete: (res) => { 
+            dbFlat = res.data; 
+            loadedFlat = true; // Tandai Flat selesai
+            if (loadedBB) populateList(); // Tunggu BB selesai
+        } 
+    });        
+
+// 4. Fungsi Hitung (Harus dibungkus dalam function hitung() {})
+    function hitung() {
+const nama = document.getElementById('obat-search').value.trim();
 
         
 
