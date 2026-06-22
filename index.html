@@ -46,110 +46,95 @@
 </div>
 
 <script>
-    let db = [];
-    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?output=csv";
+    let dbBB = [];   // Untuk Data BB
+    let dbFlat = []; // Untuk Data Flat
     
-    Papa.parse(url, {
-        download: true, header: true, complete: (res) => { 
-            db = res.data; 
-            const list = document.getElementById('list-obat');
-            db.forEach(o => {
-                if(o["Nama Obat"]) {
-                    let opt = document.createElement('option'); 
-                    opt.value = o["Nama Obat"]; 
-                    list.appendChild(opt);
-                }
-            });
-        }
-    });
+    const urlBB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=957732586&single=true&output=csv";
+    const urlFlat = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdXZ5pdBQnoLXRpGb9HWJcMsCAz0a3BRaVrks3vbN0AACeofM6u8MLh-dFYVhW8HjzrlonFGYdjeCo/pub?gid=944311413&single=true&output=csv";
+    
+    Papa.parse(urlBB, { download: true, header: true, complete: (res) => { dbBB = res.data; populateList(); } });
+    Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
 
-    // FITUR OTOMATIS: Sembunyikan kolom BB jika obat tipe Flat
-    document.getElementById('obat-search').addEventListener('input', function() {
-        const o = db.find(x => x["Nama Obat"] === this.value);
-        const bbInput = document.getElementById('bb');
-        const bbLabel = bbInput.previousElementSibling;
-        
-        if (o && o["Jenis Perhitungan"] === "Flat - Umur") {
-            bbInput.style.display = 'none';
-            bbLabel.style.display = 'none';
-        } else {
-            bbInput.style.display = 'block';
-            bbLabel.style.display = 'block';
-        }
-    });
+    function populateList() {
+        const list = document.getElementById('list-obat');
+        [...dbBB, ...dbFlat].forEach(o => {
+            if(o["Nama Obat"]) {
+                let opt = document.createElement('option'); 
+                opt.value = o["Nama Obat"]; 
+                list.appendChild(opt);
+            }
+        });
+    }
 
+    // FUNGSI HITUNG (Pusat logika)
     function hitung() {
-        const nama = document.getElementById('obat-search').value;
-        const o = db.find(x => x["Nama Obat"] === nama);
-        if (!o) return alert("Obat tidak ditemukan!");
-
-        // JALUR FLAT
-        if (o["Jenis Perhitungan"] === "Flat - Umur") {
-            jalurDosisFlat(o);
+        const nama = document.getElementById('obat-search').value.trim();
+        
+        // 1. Cek dulu apakah obat ini ada di database Flat
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+        if (oFlat) {
+            jalurDosisFlat(oFlat);
             return;
         }
 
-        // JALUR BB
+        // 2. Jika tidak ada, jalankan logika BB asli Anda
+        const oBB = dbBB.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+        if (!oBB) return alert("Obat tidak ditemukan!");
+        
         const bb = parseFloat(document.getElementById('bb').value);
         const umur = parseFloat(document.getElementById('umur').value);
         if (!bb || isNaN(umur)) return alert("Lengkapi data Berat Badan dan Umur!");
 
-        let dMin = parseFloat(o["Dosis Min"]) * bb;
-        let dMak = parseFloat(o["Dosis Mak"]) * bb;
-        const manualMaks = parseFloat(o["Maks Sekali Minum"]);
+        let dMin = parseFloat(oBB["Dosis Min"]) * bb;
+        let dMak = parseFloat(oBB["Dosis Mak"]) * bb;
+        const manualMaks = parseFloat(oBB["Maks Sekali Minum"]);
         
         if (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) dMak = manualMaks;
         if (dMin > dMak) dMin = dMak;
 
-        const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
-        const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
-        const volume = parseFloat(o["Volume Sediaan"] || 1);
+        const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
+        const isCair = oBB["Bentuk Sediaan"].toLowerCase().includes("sirup") || oBB["Bentuk Sediaan"].toLowerCase().includes("drop");
+        const volume = parseFloat(oBB["Volume Sediaan"] || 1);
         
         const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
         const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
         const satuan = isCair ? "ml" : "tab";
 
-        tampilkanHasilBB(o, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuan);
+        tampilkanHasilBB(oBB, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuan);
     }
 
+    // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
     function jalurDosisFlat(o) {
-    const umurInput = parseFloat(document.getElementById('umur').value);
-    const satuan = document.getElementById('umur-satuan').value;
-    const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
-    
-    let kat = "";
-    if (o["Umur / Kondisi"] === "Semua Umur") kat = "Semua Umur";
-    else if (o["Nama Obat"].toLowerCase().includes("zinc")) {
-        kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
-    } else {
-        if (bulan < 24) kat = "Anak <2 tahun";
-        else if (bulan < 72) kat = "Anak 2-6 tahun";
-        else if (bulan <= 144) kat = "Anak 6-12 tahun";
-        else kat = "Anak >12 tahun";
+        const umurInput = parseFloat(document.getElementById('umur').value);
+        const satuan = document.getElementById('umur-satuan').value;
+        const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
+        
+        let kat = "";
+        if (o["Umur / Kondisi"] === "Semua Umur") kat = "Semua Umur";
+        else if (o["Nama Obat"].toLowerCase().includes("zinc")) kat = (bulan < 6) ? "Bayi <6 bulan" : "Anak >=6 bulan";
+        else {
+            if (bulan < 24) kat = "Anak <2 tahun";
+            else if (bulan < 72) kat = "Anak 2-6 tahun";
+            else if (bulan <= 144) kat = "Anak 6-12 tahun";
+            else kat = "Anak >12 tahun";
+        }
+        
+        const data = dbFlat.find(x => x["Nama Obat"].trim().toLowerCase() === o["Nama Obat"].trim().toLowerCase() && x["Umur / Kondisi"].trim() === kat);
+        
+        if (!data) return alert("Data untuk kategori: " + kat + " tidak ditemukan!");
+        
+        document.getElementById('hasil').classList.remove('d-none');
+        document.getElementById('hasil').innerHTML = `
+            <h5>📋 Hasil Validasi Klinis:</h5>
+            <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
+            <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${data["Dosis Sekali (ml / tab)"]}</span></p>
+            <div class="bg-light p-3 rounded mt-2">
+                <strong>💡 Catatan Apoteker:</strong><br>${data["Catatan Klinis"]}
+                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
+            </div>`;
     }
-    
-    // Cari dengan mengabaikan spasi berlebih di awal/akhir dan huruf besar/kecil
-    const data = db.find(x => 
-        x["Nama Obat"].trim().toLowerCase() === o["Nama Obat"].trim().toLowerCase() && 
-        x["Umur / Kondisi"].trim().toLowerCase() === kat.trim().toLowerCase()
-    );
-    
-    if (!data) {
-        alert("Data tidak ditemukan! Debug: Obat='" + o["Nama Obat"] + "', Kategori='" + kat + "'");
-        return;
-    }
-    
-    // Tampilkan hasil
-    document.getElementById('hasil').classList.remove('d-none');
-    document.getElementById('hasil').innerHTML = `
-        <h5>📋 Hasil Validasi Klinis:</h5>
-        <p><strong>Aturan Pakai:</strong> ${data["Aturan Pakai"]}</p>
-        <p><strong>Dosis:</strong> <span class="text-success fw-bold fs-3">${data["Dosis Sekali Minum"]}</span></p>
-        <div class="bg-light p-3 rounded mt-2">
-            <strong>💡 Catatan:</strong> ${data["Catatan Klinis"]}
-        </div>`;
-}
 
+    // FUNGSI TAMPILAN BB (TIDAK BERUBAH)
     function tampilkanHasilBB(o, hMin, hMak, dMin, dMak, batasPerKali, satuan) {
         document.getElementById('hasil').classList.remove('d-none');
         document.getElementById('hasil').innerHTML = `
