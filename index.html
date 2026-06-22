@@ -31,8 +31,13 @@
             
             <div class="row">
                 <div class="col-8"><label class="fw-bold mb-2">Umur Pasien</label><input type="number" id="umur" class="form-control mb-3"></div>
-                <div class="col-4"><label>&nbsp;</label><select class="form-select"><option>Tahun</option></select></div>
-            </div>
+            <div class="col-4">
+    <label>&nbsp;</label>
+    <select id="umur-satuan" class="form-select">
+        <option value="tahun">Tahun</option>
+        <option value="bulan">Bulan</option>
+    </select>
+    </div>
 
             <button class="btn btn-primary w-100" onclick="hitung()">Hitung & Validasi Dosis</button>
         </div>
@@ -61,11 +66,16 @@
 
     function hitung() {
         const nama = document.getElementById('obat-search').value;
+        const o = db.find(x => x["Nama Obat"] === nama);
+        if (!o) return alert("Obat tidak ditemukan!");
+	if (o && o["Jenis Perhitungan"] === "Flat - Umur") {
+            jalurDosisFlat(o); 
+            return;
+        }
         const bb = parseFloat(document.getElementById('bb').value);
         const umur = parseFloat(document.getElementById('umur').value);
-        const o = db.find(x => x["Nama Obat"] === nama);
-        
-        if (!o || !bb || isNaN(umur)) return alert("Lengkapi data dengan benar!");
+                
+        if (!bb || isNaN(umur)) return alert("Lengkapi data dengan benar!");
 
         // 1. Hitung dosis mg berdasarkan BB
         let dMin = parseFloat(o["Dosis Min"]) * bb;
@@ -104,12 +114,33 @@
             <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
             <p class="small text-muted">
                 ${batasPerKali !== null 
-                  ? '*Dosis telah dibatasi maksimal ' + batasPerKali + ' mg per kali minum.' 
+                  ? '*Dosis telah dibatasi maksimal ' + batasPerKali + ' mg per kali pakai.' 
                   : '*Dosis dihitung berdasarkan berat badan pasien.'}
             </p>
             <div class="bg-light p-3 rounded">
                 <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
                 <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
+            </div>`;
+    }
+function jalurDosisFlat(o) {
+        const umurInput = parseFloat(document.getElementById('umur').value);
+        const satuan = document.getElementById('umur-satuan').value;
+        const bulan = (satuan === 'tahun') ? (umurInput * 12) : umurInput;
+        
+        // Sesuaikan kategori ini dengan kolom "Umur / Kondisi" di Google Sheet Anda
+        let kat = (bulan < 6) ? "Bayi <6 bulan" : (bulan < 24) ? "Anak <2 tahun" : (bulan <= 72) ? "Anak 2-6 tahun" : "Anak 6-12 tahun";
+        
+        const data = db.find(x => x["Nama Obat"] === o["Nama Obat"] && x["Umur / Kondisi"] === kat);
+        if (!data) return alert("Data dosis untuk kategori umur ini tidak ditemukan!");
+        
+        document.getElementById('hasil').classList.remove('d-none');
+        document.getElementById('hasil').innerHTML = `
+            <h5>📋 Hasil Validasi Klinis:</h5>
+            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+            <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${data["Dosis Sekali (ml / tab)"]}</span></p>
+            <div class="bg-light p-3 rounded mt-2">
+                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+                <p class="mb-0 mt-2"><strong>Referensi:</strong> ${data["Sumber"]}</p>
             </div>`;
     }
 </script>
