@@ -111,63 +111,49 @@
         const umur = parseFloat(document.getElementById('umur').value);
         const o = db.find(x => x["Nama Obat"] === nama);
         
-        if (!o || !bb) return alert("Lengkapi data!");
+        if (!o || !bb || isNaN(umur)) return alert("Lengkapi data dengan benar!");
 
-        // 1. Hitung dosis dasar berdasarkan BB
+        // 1. Hitung dosis berdasarkan BB (Pastikan kolom di Sheet sesuai)
         let dMin = parseFloat(o["Dosis Min"]) * bb;
         let dMak = parseFloat(o["Dosis Mak"]) * bb;
 
-        // 2. Tentukan Batas Harian secara Universal dari database
-// Jika kolom di sheet kosong, gunakan null agar sistem tahu bahwa data tidak tersedia
-const dMaxHari = (umur < 12) 
-    ? parseFloat(o["Maks Dosis Anak Hari"]) 
-    : parseFloat(o["Maks Dosis Dewasa Hari"]);
+        // 2. Ambil batas harian dari Sheet (Hapus angka 2600/4000 agar tidak memicu error)
+        const dMaxHari = (umur < 12) ? parseFloat(o["Maks Dosis Anak Hari"]) : parseFloat(o["Maks Dosis Dewasa Hari"]);
+        const frekuensi = parseFloat(o["Frekuensi per Hari"]);
+        
+        // 3. Tentukan batas sekali pakai (Prioritas: Manual)
+        const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
+        const batasPerKali = (!isNaN(manualMaksSekali) && manualMaksSekali > 0) 
+                             ? manualMaksSekali 
+                             : (dMaxHari / frekuensi);
 
-const frekuensi = parseFloat(o["Frekuensi per Hari"]) || 4; 
-
-// 3. Tentukan Batas Sekali Pakai (Universal)
-const manualMaksSekali = parseFloat(o["Maks Sekali Minum"]);
-
-// Jika dMaxHari tidak ada di database, kita tidak boleh asal tebak 2600/4000.
-// Kita gunakan logika: jika dMaxHari valid, gunakan (dMaxHari / frekuensi), 
-// jika tidak ada, maka batasnya hanya bergantung pada manualMaksSekali.
-let batasPerKali;
-
-if (!isNaN(manualMaksSekali) && manualMaksSekali > 0) {
-    // Jika ada batas manual, bandingkan dengan batas harian (jika dMaxHari tersedia)
-    batasPerKali = !isNaN(dMaxHari) ? Math.min(manualMaksSekali, dMaxHari / frekuensi) : manualMaksSekali;
-} else {
-    // Jika tidak ada batas manual, gunakan batas harian yang ada
-    batasPerKali = dMaxHari / frekuensi;
-}
-
-        // 4. Terapkan Validasi (Lapis Ganda)
-        if (dMak > batasPerKali) {
-            dMak = batasPerKali;
+        // 4. Validasi Klinis
+        if (!isNaN(batasPerKali)) {
+            if (dMak > batasPerKali) dMak = batasPerKali;
         }
         if (dMin > dMak) dMin = dMak;
 
-        // 5. Konversi ke ml atau tablet
+        // 5. Konversi
         const kekuatan = parseFloat(o["Kekuatan Sediaan"]);
-        const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup") || o["Bentuk Sediaan"].toLowerCase().includes("drop");
+        const isCair = o["Bentuk Sediaan"].toLowerCase().includes("sirup");
         const volume = parseFloat(o["Volume Sediaan"] || 1);
         
-        const hasilMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
-        const hasilMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
+        const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
+        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
         const satuan = isCair ? "ml" : "tab";
 
-        // 6. Tampilkan hasil
+        // 6. Tampilkan Hasil (Gunakan dMaxHari untuk info tambahan)
         document.getElementById('hasil').classList.remove('d-none');
-document.getElementById('hasil').innerHTML = `
-    <h5>📋 Hasil Validasi Klinis:</h5>
-    <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
-    <p><strong>Dosis Sekali Pakai:</strong><br> <span class="text-success fw-bold fs-3">${hasilMin.toFixed(1)} - ${hasilMak.toFixed(1)} ${satuan}</span></p>
-    <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
-    <p class="small text-danger">*Dosis dibatasi otomatis agar tidak melebihi ${dMaxHari} mg/hari.</p>
-    <div class="bg-light p-3 rounded">
-        <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
-        <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
-    </div>`;
+        document.getElementById('hasil').innerHTML = `
+            <h5>📋 Hasil Validasi Klinis:</h5>
+            <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"]}</p>
+            <p><strong>Dosis Sekali Pakai:</strong><br>
+            <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p> <small>Zat aktif aktual: ${dMin.toFixed(0)} - ${dMak.toFixed(0)} mg.</small>
+            <p class="small text-danger">*Dosis dibatasi agar tidak melebihi ${!isNaN(dMaxHari) ? dMaxHari + ' mg' : 'batas'} per hari.</p>
+            <div class="bg-light p-3 rounded">
+                <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"]}
+            <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"]}</p>
+            </div>`;
     }
 </script>
 
