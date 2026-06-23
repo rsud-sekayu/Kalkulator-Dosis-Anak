@@ -117,50 +117,64 @@
     Papa.parse(urlFlat, { download: true, header: true, complete: (res) => { dbFlat = res.data; populateList(); } });
 
     function hitung() {
-        const nama = document.getElementById('obat-search').value.trim();
-        
-        // 1. Coba cari di dbFlat dulu
-        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
+    const namaInput = document.getElementById('obat-search').value.trim();
+    const bb = parseFloat(document.getElementById('bb').value);
+    
+    // 1. Khusus hanya mencari di dbBB
+    const opsiObat = dbBB.filter(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
+    
+    // 2. Jika tidak ada di dbBB, baru kita cek apakah ada di dbFlat (logika lama)
+    if (opsiObat.length === 0) {
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
         if (oFlat) {
             jalurDosisFlat(oFlat);
             return;
         }
-
-        // 2. Jika tidak ada di dbFlat, baru cari di dbBB
-        const oBB = dbBB.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === nama);
-        
-        // 3. Jika tidak ditemukan di kedua database
-        if (!oBB) return alert("Obat tidak ditemukan!");
-        
-        const bb = parseFloat(document.getElementById('bb').value);
-        const umur = parseFloat(document.getElementById('umur').value);
-        if (!bb || isNaN(umur)) return alert("Lengkapi data Berat Badan dan Umur!");
-
-        let dMin = parseFloat(oBB["Dosis Min"]) * bb;
-        let dMak = parseFloat(oBB["Dosis Mak"]) * bb;
-        const manualMaks = parseFloat(oBB["Maks Sekali Minum"]);
-        
-        if (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) dMak = manualMaks;
-        if (dMin > dMak) dMin = dMak;
-
-        const bentuk = oBB["Bentuk Sediaan"] ? oBB["Bentuk Sediaan"].toLowerCase() : "";
-        const kekuatan = parseFloat(oBB["Kekuatan Sediaan"]);
-        const volume = parseFloat(oBB["Volume Sediaan"] || 1);
-
-        const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
-                       bentuk.includes("injeksi") || bentuk.includes("rektal");
-
-        let satuanFinal = isCair ? "ml" : "tab";
-        if (bentuk.includes("rektal") || bentuk.includes("tube")) {
-            satuanFinal = "ml (dalam tube)";
-        }
-        
-        const hMin = isCair ? (dMin / kekuatan * volume) : (dMin / kekuatan);
-        const hMak = isCair ? (dMak / kekuatan * volume) : (dMak / kekuatan);
-
-        tampilkanHasilBB(oBB, hMin, hMak, dMin, dMak, (manualMaks > 0 ? manualMaks : null), satuanFinal);
+        return alert("Obat tidak ditemukan!");
     }
+    
+    if (isNaN(bb)) return alert("Lengkapi data Berat Badan (kg)!");
 
+    const hasilDiv = document.getElementById('hasil');
+    hasilDiv.classList.remove('d-none');
+    
+    let htmlHasil = `<h5 class="mb-3">📋 Hasil Validasi Klinis: <strong>${namaInput}</strong></h5>`;
+
+    // 3. Loop khusus untuk dbBB
+    opsiObat.forEach(o => {
+        const dMin = parseFloat(o["Dosis Min"]) * bb;
+        const dMak = parseFloat(o["Dosis Mak"]) * bb;
+        const manualMaks = parseFloat(o["Maks Sekali Minum"] || 0);
+        
+        let finalMak = (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) ? manualMaks : dMak;
+        let finalMin = (dMin > finalMak) ? finalMak : dMin;
+
+        const isCair = (o["Bentuk Sediaan"] || "").toLowerCase().includes("sirup") || 
+                       (o["Bentuk Sediaan"] || "").toLowerCase().includes("drop");
+        const kek = parseFloat(o["Kekuatan Sediaan"] || 1);
+        const vol = parseFloat(o["Volume Sediaan"] || 1);
+        const satuan = isCair ? "ml" : "tab";
+        
+        const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
+        const hMak = isCair ? (finalMak / kek * vol) : (finalMak / kek);
+
+        htmlHasil += `
+            <div class="result-box shadow-sm mb-4">
+                <h6 class="text-primary text-uppercase">${o["Indikasi"] || "Indikasi Umum"}</h6>
+                <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"] || "-"}</p>
+                <p><strong>Dosis Sekali Pakai:</strong><br> 
+                <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p>
+                <small>Zat aktif aktual: ${finalMin.toFixed(0)} - ${finalMak.toFixed(0)} mg.</small>
+                <p class="small text-muted">${manualMaks > 0 ? '*Dosis telah dibatasi maksimal ' + manualMaks + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
+                <div class="bg-light p-3 rounded">
+                    <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
+                    <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</p>
+                </div>
+            </div>`;
+    });
+
+    hasilDiv.innerHTML = htmlHasil;
+}
     // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
 
     function jalurDosisFlat(o) {
