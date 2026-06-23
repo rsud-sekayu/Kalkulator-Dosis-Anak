@@ -181,6 +181,16 @@
 
     hasilDiv.innerHTML = htmlHasil;
 }
+    // 3. Jika tidak ada di dbBB, baru cek di dbFlat
+    else {
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
+        if (oFlat) {
+            jalurDosisFlat(oFlat);
+        } else {
+            alert("Obat tidak ditemukan!");
+        }
+    }
+}
     // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
 
     function jalurDosisFlat(o) {
