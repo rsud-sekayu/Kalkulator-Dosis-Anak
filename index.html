@@ -120,16 +120,24 @@
     const namaInput = document.getElementById('obat-search').value.trim();
     const bb = parseFloat(document.getElementById('bb').value);
     
-    // 1. Cek di dbBB
-    const opsiObat = dbBB.filter(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
+    // 1. Cek di dbFlat terlebih dahulu (prioritaskan jika ada kata kunci)
+    const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim().toLowerCase() === namaInput.toLowerCase());
     
-    // 2. Jika ditemukan di dbBB, proses dengan logika BB
-    if (opsiObat.length > 0) {
-        if (isNaN(bb)) return alert("Lengkapi data Berat Badan (kg)!");
+    // 2. Cek di dbBB
+    const opsiObat = dbBB.filter(x => x["Nama Obat"] && x["Nama Obat"].trim().toLowerCase() === namaInput.toLowerCase());
 
+    // --- LOGIKA PINTAR: Pilih jalur berdasarkan data yang ditemukan ---
+    
+    if (oFlat) {
+        // Jika ketemu di dbFlat, JALUR AMAN: langsung ke fungsi Flat
+        jalurDosisFlat(oFlat);
+    } else if (opsiObat.length > 0) {
+        // Jika ketemu di dbBB, JALUR AMAN: proses BB
+        if (isNaN(bb)) return alert("Lengkapi data Berat Badan (kg)!");
+        
+        // Memanggil fungsi logika BB yang sudah Anda miliki di dalam fungsi hitung
         const hasilDiv = document.getElementById('hasil');
         hasilDiv.classList.remove('d-none');
-        
         let htmlHasil = `<h5 class="mb-3">📋 Hasil Validasi Klinis: <strong>${namaInput}</strong></h5>`;
 
         opsiObat.forEach(o => {
@@ -170,12 +178,7 @@
                 </div>`;
         });
         hasilDiv.innerHTML = htmlHasil;
-    } 
-    // 3. Jika tidak ada di dbBB, baru cek di dbFlat
-    else {
-        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].toLowerCase().includes(namaInput.toLowerCase()));
-        if (oFlat) {
-            jalurDosisFlat(oFlat);
+    
         } else {
             alert("Obat tidak ditemukan!");
         }
