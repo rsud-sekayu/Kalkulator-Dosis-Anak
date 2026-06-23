@@ -173,7 +173,7 @@
     } 
     // 3. Jika tidak ada di dbBB, baru cek di dbFlat
     else {
-        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].toLowerCase().includes(namaInput.toLowerCase()));
         if (oFlat) {
             jalurDosisFlat(oFlat);
         } else {
