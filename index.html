@@ -149,11 +149,17 @@
         let finalMak = (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) ? manualMaks : dMak;
         let finalMin = (dMin > finalMak) ? finalMak : dMin;
 
-        const isCair = (o["Bentuk Sediaan"] || "").toLowerCase().includes("sirup") || 
-                       (o["Bentuk Sediaan"] || "").toLowerCase().includes("drop");
+        const bentuk = (o["Bentuk Sediaan"] || "").toLowerCase();
         const kek = parseFloat(o["Kekuatan Sediaan"] || 1);
         const vol = parseFloat(o["Volume Sediaan"] || 1);
-        const satuan = isCair ? "ml" : "tab";
+        
+        const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
+                       bentuk.includes("injeksi") || bentuk.includes("rektal");
+        
+        let satuan = isCair ? "ml" : "tab";
+        if (bentuk.includes("rektal") || bentuk.includes("tube")) {
+            satuan = "ml (dalam tube)";
+        }
         
         const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
         const hMak = isCair ? (finalMak / kek * vol) : (finalMak / kek);
