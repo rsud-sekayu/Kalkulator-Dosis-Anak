@@ -137,6 +137,10 @@
                 jalurDosisFlat(o);
                 return; // Perintah ini penting: agar perhitungan BB di bawahnya tidak dijalankan
             }
+	if (isNaN(bb)) {
+        alert("Lengkapi data Berat Badan (kg)!");
+        return; 
+    }
     // 1. Ambil frekuensi dari kolom baru (default 1 jika kosong)
     const fMin = parseFloat(o["Frekuensi (f) Min"]) || 1;
     const fMax = parseFloat(o["Frekuensi (f) Max"]) || 1;
