@@ -120,48 +120,53 @@
     const namaInput = document.getElementById('obat-search').value.trim();
     const bb = parseFloat(document.getElementById('bb').value);
     
-    // 1. Cek di dbFlat terlebih dahulu (prioritaskan jika ada kata kunci)
-    const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].trim().toLowerCase() === namaInput.toLowerCase());
+    // 1. Cek di dbBB
+    const opsiObat = dbBB.filter(x => x["Nama Obat"] && x["Nama Obat"].trim() === namaInput);
     
-    // 2. Cek di dbBB
-    const opsiObat = dbBB.filter(x => x["Nama Obat"] && x["Nama Obat"].trim().toLowerCase() === namaInput.toLowerCase());
-
-    // --- LOGIKA PINTAR: Pilih jalur berdasarkan data yang ditemukan ---
-    
-    if (oFlat) {
-        // Jika ketemu di dbFlat, JALUR AMAN: langsung ke fungsi Flat
-        jalurDosisFlat(oFlat);
-    } else if (opsiObat.length > 0) {
-        // Jika ketemu di dbBB, JALUR AMAN: proses BB
+    // 2. Jika ditemukan di dbBB, proses dengan logika BB
+    if (opsiObat.length > 0) {
         if (isNaN(bb)) return alert("Lengkapi data Berat Badan (kg)!");
-        
-        // Memanggil fungsi logika BB yang sudah Anda miliki di dalam fungsi hitung
+
         const hasilDiv = document.getElementById('hasil');
         hasilDiv.classList.remove('d-none');
+        
         let htmlHasil = `<h5 class="mb-3">📋 Hasil Validasi Klinis: <strong>${namaInput}</strong></h5>`;
 
         opsiObat.forEach(o => {
-            const dMin = parseFloat(o["Dosis Min"]) * bb;
-            const dMak = parseFloat(o["Dosis Mak"]) * bb;
-            const manualMaks = parseFloat(o["Maks Sekali Minum"] || 0);
-            
-            let finalMak = (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) ? manualMaks : dMak;
-            let finalMin = (dMin > finalMak) ? finalMak : dMin;
+    // 1. Ambil frekuensi dari kolom baru (default 1 jika kosong)
+    const fMin = parseFloat(o["Frekuensi (f) Min"]) || 1;
+    const fMax = parseFloat(o["Frekuensi (f) Max"]) || 1;
 
-            const bentuk = (o["Bentuk Sediaan"] || "").toLowerCase();
-            const kek = parseFloat(o["Kekuatan Sediaan"] || 1);
-            const vol = parseFloat(o["Volume Sediaan"] || 1);
-            
-            const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
-                           bentuk.includes("injeksi") || bentuk.includes("rektal");
-            
-            let satuan = isCair ? "ml" : "tab";
-            if (bentuk.includes("rektal") || bentuk.includes("tube")) {
-                satuan = "ml (dalam tube)";
-            }
-            
-            const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
-            const hMak = isCair ? (finalMak / kek * vol) : (finalMak / kek);
+    // 2. Hitung Dosis Dasar (mg/kgBB)
+    let dMin = parseFloat(o["Dosis Min"]) * bb;
+    let dMak = parseFloat(o["Dosis Mak"]) * bb;
+
+    // 3. Logika Perhitungan Frekuensi
+    // Jika "Per Hari", dosis harian dibagi frekuensi agar menjadi dosis per kali.
+    // Jika "Per Kali", maka fMin/fMax adalah 1, sehingga dosis tetap.
+    if ((o["Jenis Perhitungan"] || "").trim().includes("Per Hari")) {
+        dMin = dMin / fMax; // Bagi dengan frekuensi tertinggi untuk dosis minimal (konservatif)
+        dMak = dMak / fMin; // Bagi dengan frekuensi terendah untuk dosis maksimal (batas atas)
+    }
+
+    // 4. Validasi Batas Maksimal (Maks Sekali Minum)
+    const manualMaks = parseFloat(o["Maks Sekali Minum"] || 0);
+    let finalMak = (!isNaN(manualMaks) && manualMaks > 0 && dMak > manualMaks) ? manualMaks : dMak;
+    let finalMin = (dMin > finalMak) ? finalMak : dMin;
+
+    // 5. Konversi ke mL/Tab
+    const bentuk = (o["Bentuk Sediaan"] || "").toLowerCase();
+    const kek = parseFloat(o["Kekuatan Sediaan"] || 1);
+    const vol = parseFloat(o["Volume Sediaan"] || 1);
+    
+    const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
+                   bentuk.includes("injeksi") || bentuk.includes("rektal");
+    
+    let satuan = isCair ? "ml" : "tab";
+    if (bentuk.includes("rektal") || bentuk.includes("tube")) satuan = "ml (dalam tube)";
+    
+    const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
+    const hMak = isCair ? (finalMak / kek * vol) : (finalMak / kek);
 
             htmlHasil += `
                 <div class="result-box shadow-sm mb-4">
@@ -178,12 +183,17 @@
                 </div>`;
         });
         hasilDiv.innerHTML = htmlHasil;
-    
+    } 
+    // 3. Jika tidak ada di dbBB, baru cek di dbFlat
+    else {
+        const oFlat = dbFlat.find(x => x["Nama Obat"] && x["Nama Obat"].toLowerCase().includes(namaInput.toLowerCase()));
+        if (oFlat) {
+            jalurDosisFlat(oFlat);
         } else {
             alert("Obat tidak ditemukan!");
         }
     }
-
+}
     // FUNGSI JALUR FLAT (Logika perbaikan agar data ditemukan)
 
     function jalurDosisFlat(o) {
