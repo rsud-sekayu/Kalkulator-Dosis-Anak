@@ -181,11 +181,11 @@
         // Kita hitung berapa tube yang diperlukan
         const tMin = hMin / vol;
         const tMak = hMak / vol;
-        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(2)} ml (${tMin.toFixed(1)} - ${tMak.toFixed(2)} tube)`;
+        tampilanDosis = `${hMin.toFixed(2)} - ${hMak.toFixed(2)} ml (${tMin.toFixed(2)} - ${tMak.toFixed(2)} tube)`;
     } else {
         // Untuk yang bukan rektal, gunakan logika lama
         let satuan = isCair ? "ml" : "tab";
-        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}`;
+        tampilanDosis = `${hMin.toFixed(2)} - ${hMak.toFixed(2)} ${satuan}`;
     }
 
             htmlHasil += `
