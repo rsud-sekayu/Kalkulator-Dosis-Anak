@@ -181,7 +181,7 @@
         // Kita hitung berapa tube yang diperlukan
         const tMin = hMin / vol;
         const tMak = hMak / vol;
-        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(1)} ml (${tMin.toFixed(1)} - ${tMak.toFixed(1)} tube)`;
+        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(2)} ml (${tMin.toFixed(1)} - ${tMak.toFixed(2)} tube)`;
     } else {
         // Untuk yang bukan rektal, gunakan logika lama
         let satuan = isCair ? "ml" : "tab";
@@ -194,7 +194,7 @@
                     <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"] || "-"}</p>
                     <p><strong>Dosis Sekali Pakai:</strong><br> 
                     <span class="text-success fw-bold fs-3">${tampilanDosis}</span></p>
-                    <span class>Zat aktif aktual: ${finalMin.toFixed(0)} - ${finalMak.toFixed(0)} mg.</small>
+                    <span class>Zat aktif aktual: ${finalMin.toFixed(1)} - ${finalMak.toFixed(1)} mg.</small>
                     <p class="small text-muted">${manualMaks > 0 ? '*Dosis telah dibatasi maksimal ' + manualMaks + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
                     <div class="bg-light p-3 rounded">
                         <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
