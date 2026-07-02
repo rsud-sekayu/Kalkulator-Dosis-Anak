@@ -202,7 +202,8 @@ const showInstruksi = instruksi !== "" && instruksi !== "-";
                     <span class="text-success fw-bold fs-3">${tampilanDosis}</span></p>
                     <span class>Zat aktif aktual: ${finalMin.toFixed(1)} - ${finalMak.toFixed(1)} mg.</small>
                     <p class="small text-muted">${manualMaks > 0 ? '*Dosis telah dibatasi maksimal ' + manualMaks + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
-                    <div class="bg-warning-subtle p-3 rounded mt-2 border border-warning">
+${showInstruksi ? `                    
+		    <div class="bg-warning-subtle p-3 rounded mt-2 border border-warning">
         <strong>💡 Instruksi Pengenceran Wajib:</strong><br>
         ${instruksi}
                     </div>` : ""}
