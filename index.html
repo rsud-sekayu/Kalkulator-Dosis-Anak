@@ -168,21 +168,33 @@
     const vol = parseFloat(o["Volume Sediaan"] || 1);
     
     const isCair = bentuk.includes("sirup") || bentuk.includes("drop") || 
-                   bentuk.includes("injeksi") || bentuk.includes("rektal");
-    
-    let satuan = isCair ? "ml" : "tab";
-    if (bentuk.includes("rektal") || bentuk.includes("tube")) satuan = "ml (dalam tube)";
-    
-    const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
+                   bentuk.includes("injeksi") || bentuk.includes("rektal")|| 
+               bentuk.includes("infus") || 
+               bentuk.includes("suspensi");
+
+   const hMin = isCair ? (finalMin / kek * vol) : (finalMin / kek);
     const hMak = isCair ? (finalMak / kek * vol) : (finalMak / kek);
+    
+   let tampilanDosis = "";
+   if (bentuk.includes("rektal")) {
+        // Asumsi: Volume Sediaan di database adalah volume total per tube (misal: 5 ml)
+        // Kita hitung berapa tube yang diperlukan
+        const tMin = hMin / vol;
+        const tMak = hMak / vol;
+        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(1)} ml (${tMin.toFixed(1)} - ${tMak.toFixed(1)} tube)`;
+    } else {
+        // Untuk yang bukan rektal, gunakan logika lama
+        let satuan = isCair ? "ml" : "tab";
+        tampilanDosis = `${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}`;
+    }
 
             htmlHasil += `
                 <div class="result-box shadow-sm mb-4">
                     <h6 class="text-primary text-uppercase">${o["Indikasi"] || "Indikasi Umum"}</h6>
                     <p><strong>Aturan Pakai:</strong> ${o["Aturan Pakai"] || "-"}</p>
                     <p><strong>Dosis Sekali Pakai:</strong><br> 
-                    <span class="text-success fw-bold fs-3">${hMin.toFixed(1)} - ${hMak.toFixed(1)} ${satuan}</span></p>
-                    <small>Zat aktif aktual: ${finalMin.toFixed(0)} - ${finalMak.toFixed(0)} mg.</small>
+                    <span class="text-success fw-bold fs-3">${tampilanDosis}</span></p>
+                    <span class>Zat aktif aktual: ${finalMin.toFixed(0)} - ${finalMak.toFixed(0)} mg.</small>
                     <p class="small text-muted">${manualMaks > 0 ? '*Dosis telah dibatasi maksimal ' + manualMaks + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
                     <div class="bg-light p-3 rounded">
                         <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
