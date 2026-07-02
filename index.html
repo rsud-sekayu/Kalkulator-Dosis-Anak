@@ -188,6 +188,12 @@
         tampilanDosis = `${hMin.toFixed(2)} - ${hMak.toFixed(2)} ${satuan}`;
     }
 
+// Ambil nilai kolom Instruksi Pengenceran
+const instruksi = (o["Instruksi Pengenceran"] || "").trim();
+
+// Cek apakah instruksi ada isinya dan bukan sekadar tanda hubung "-"
+const showInstruksi = instruksi !== "" && instruksi !== "-";
+
             htmlHasil += `
                 <div class="result-box shadow-sm mb-4">
                     <h6 class="text-primary text-uppercase">${o["Indikasi"] || "Indikasi Umum"}</h6>
@@ -198,8 +204,8 @@
                     <p class="small text-muted">${manualMaks > 0 ? '*Dosis telah dibatasi maksimal ' + manualMaks + ' mg.' : '*Dosis berdasarkan berat badan.'}</p>
                     <div class="bg-warning-subtle p-3 rounded mt-2 border border-warning">
         <strong>💡 Instruksi Pengenceran Wajib:</strong><br>
-        ${o["Instruksi Pengenceran"] || "-"}
-    		</div>
+        ${instruksi}
+                    </div>` : ""}
 		    <div class="bg-light p-3 rounded">
                         <strong>💡 Catatan Apoteker:</strong><br>${o["Catatan Klinis"] || "-"}
                         <p class="mb-0 mt-2"><strong>Referensi:</strong> ${o["Sumber"] || "-"}</p>
